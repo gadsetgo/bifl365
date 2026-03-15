@@ -9,3 +9,4 @@ Conventions:
 - Never change DB schema without showing migration SQL first
 - Never add npm packages without asking
 - **CRITICAL**: DB Migrations via `npx supabase migration up` or `pg` fail in this environment due to no local container/blocked ports. All schema changes (`supabase/migrations/*.sql`) MUST be given to the Admin to run manually in the Supabase Dashboard SQL Editor. Do not attempt automation.
+.

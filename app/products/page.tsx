@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { ProductCard } from '@/components/ProductCard';
@@ -9,7 +9,9 @@ import type { Product, CategoryType, AwardType } from '@/lib/types';
 
 type WeekFilter = 'all' | 'this_week' | 'previous_weeks';
 
-export default function ProductsPage() {
+export const dynamic = 'force-dynamic';
+
+function ProductsPageInner() {
   const searchParams = useSearchParams();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -42,7 +44,8 @@ export default function ProductsPage() {
         .limit(1)
         .maybeSingle();
 
-      setLatestWeek(data?.week_of ?? null);
+      const row = data as { week_of: string | null } | null;
+      setLatestWeek(row?.week_of ?? null);
     }
 
     loadLatestWeek();
@@ -198,5 +201,13 @@ export default function ProductsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<div className="bg-paper min-h-screen" />}>
+      <ProductsPageInner />
+    </Suspense>
   );
 }

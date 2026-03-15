@@ -4,7 +4,7 @@ import type { AwardType } from '@/lib/types';
 
 interface AwardBadgeProps {
   type: AwardType;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'header';
 }
 
 const AWARD_CONFIG: Record<AwardType, { label: string; symbol: string; bg: string; border: string; text: string }> = {
@@ -38,6 +38,7 @@ export function AwardBadge({ type, size = 'md' }: AwardBadgeProps) {
     sm: 'text-2xs px-2 py-0.5 gap-1',
     md: 'text-xs px-2.5 py-1 gap-1.5',
     lg: 'text-sm px-3 py-1.5 gap-2',
+    header: 'text-2xs px-2.5 h-9 gap-1',
   };
 
   return (

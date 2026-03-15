@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { ProductCard } from '@/components/ProductCard';
-import { CategoryStrip } from '@/components/CategoryStrip';
+import { CompactFilterBar } from '@/components/CompactFilterBar';
 import type { Product, CategoryType, AwardType } from '@/lib/types';
 
 type WeekFilter = 'all' | 'this_week' | 'previous_weeks';
@@ -22,15 +22,21 @@ function ProductsPageInner() {
   const initialAward = (searchParams.get('award') as AwardType | null) ?? null;
   const categoryParam = searchParams.get('category') as CategoryType | null;
   const timeParam = (searchParams.get('time') as WeekFilter | null) ?? null;
+  const searchParam = searchParams.get('search') ?? '';
 
   const [awardFilter, setAwardFilter] = useState<AwardType | 'all'>(initialAward ?? 'all');
   const [weekFilter, setWeekFilter] = useState<WeekFilter>(timeParam ?? 'all');
+  const [searchQuery, setSearchQuery] = useState(searchParam);
 
   useEffect(() => {
     if (categoryParam && activeCategory === 'all') {
       setActiveCategory(categoryParam);
     }
   }, [categoryParam, activeCategory]);
+
+  useEffect(() => {
+    setSearchQuery(searchParam);
+  }, [searchParam]);
 
   // Fetch the most recent week_of to support "This Week" / "Previous Weeks" filters
   useEffect(() => {
@@ -75,11 +81,25 @@ function ProductsPageInner() {
       }
 
       const { data } = await q;
-      setProducts(data ?? []);
+      let filteredProducts = data ?? [];
+
+      // Client-side search filtering (name, brand, category)
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase();
+        filteredProducts = filteredProducts.filter(
+          (p) =>
+            p.name.toLowerCase().includes(query) ||
+            p.brand.toLowerCase().includes(query) ||
+            p.category.toLowerCase().includes(query) ||
+            (p.summary && p.summary.toLowerCase().includes(query))
+        );
+      }
+
+      setProducts(filteredProducts);
       setLoading(false);
     }
     load();
-  }, [activeCategory, awardFilter, weekFilter, latestWeek]);
+  }, [activeCategory, awardFilter, weekFilter, latestWeek, searchQuery]);
 
   return (
     <div className="bg-paper min-h-screen">
@@ -95,9 +115,16 @@ function ProductsPageInner() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Category filter */}
-        <div className="mb-8 pb-4 border-b border-ghost">
-          <CategoryStrip activeCategory={activeCategory} onSelect={setActiveCategory} />
+        {/* Compact filter bar - all filters in one line */}
+        <div className="mb-6 pb-4 border-b border-ghost">
+          <CompactFilterBar
+            activeCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
+            awardFilter={awardFilter}
+            onAwardChange={setAwardFilter}
+            weekFilter={weekFilter}
+            onWeekChange={setWeekFilter}
+          />
         </div>
 
         {/* Count + active filters */}
@@ -105,8 +132,15 @@ function ProductsPageInner() {
           <div className="mb-4 flex items-center justify-between gap-3 flex-wrap">
             <span className="section-label">
               {products.length} product{products.length !== 1 ? 's' : ''}
+              {searchQuery && ` matching "${searchQuery}"`}
             </span>
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Search query display */}
+              {searchQuery && (
+                <span className="text-2xs font-sans uppercase tracking-widest px-3 py-1 border border-charcoal bg-paper-dark">
+                  Search: {searchQuery}
+                </span>
+              )}
               {/* Award filter summary */}
               {awardFilter !== 'all' && (
                 <span className="text-2xs font-sans uppercase tracking-widest px-3 py-1 border border-charcoal bg-paper-dark">
@@ -122,58 +156,6 @@ function ProductsPageInner() {
             </div>
           </div>
         )}
-
-        {/* Awards + week filters */}
-        <div className="mb-6 flex flex-wrap items-center gap-3 text-2xs font-sans uppercase tracking-widest">
-          <span className="text-charcoal-400">Filter by award:</span>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { value: 'all', label: 'All Awards' },
-              { value: 'best_buy', label: 'Best Buy' },
-              { value: 'forever_pick', label: 'Forever Pick' },
-              { value: 'hidden_gem', label: 'Hidden Gem' },
-            ].map(({ value, label }) => {
-              const isActive = awardFilter === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setAwardFilter(value as AwardType | 'all')}
-                  className={`px-3 py-1 border text-2xs font-sans uppercase tracking-widest transition-colors ${
-                    isActive ? 'bg-charcoal text-paper border-charcoal' : 'bg-paper text-ink border-charcoal hover:bg-charcoal hover:text-paper'
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mb-6 flex flex-wrap items-center gap-3 text-2xs font-sans uppercase tracking-widest">
-          <span className="text-charcoal-400">Filter by week:</span>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { value: 'all', label: 'All Time' },
-              { value: 'this_week', label: 'This Week' },
-              { value: 'previous_weeks', label: 'Previous Weeks' },
-            ].map(({ value, label }) => {
-              const isActive = weekFilter === value;
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setWeekFilter(value as WeekFilter)}
-                  className={`px-3 py-1 border text-2xs font-sans uppercase tracking-widest transition-colors ${
-                    isActive ? 'bg-charcoal text-paper border-charcoal' : 'bg-paper text-ink border-charcoal hover:bg-charcoal hover:text-paper'
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
         {/* Grid */}
         {loading ? (

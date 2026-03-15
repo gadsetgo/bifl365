@@ -70,7 +70,8 @@ export function AwardStamp({ type }: { type: AwardType }) {
       className={`
         flex flex-col gap-3 p-6 border border-charcoal
         ${cfg.bg} ${cfg.text}
-        transition-all duration-200 cursor-default
+        transition-all duration-200 cursor-pointer
+        hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#121212]
       `}
       style={{ boxShadow: '3px 3px 0px 0px #121212' }}
     >

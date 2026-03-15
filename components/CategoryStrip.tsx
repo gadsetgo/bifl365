@@ -32,7 +32,7 @@ export function CategoryStrip({ activeCategory = 'all', onSelect, useNavigation 
     if (onSelect) {
       onSelect(cat);
     } else if (useNavigation) {
-      const url = cat === 'all' ? '/products' : `/category/${cat}`;
+      const url = cat === 'all' ? '/products' : `/products?category=${cat}`;
       window.location.href = url;
     }
   }

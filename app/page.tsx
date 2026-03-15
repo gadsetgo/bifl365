@@ -98,9 +98,15 @@ export default async function HomePage() {
             <div className="flex-1 h-px bg-charcoal" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <AwardStamp type="best_buy" />
-            <AwardStamp type="forever_pick" />
-            <AwardStamp type="hidden_gem" />
+            <Link href="/products?award=best_buy">
+              <AwardStamp type="best_buy" />
+            </Link>
+            <Link href="/products?award=forever_pick">
+              <AwardStamp type="forever_pick" />
+            </Link>
+            <Link href="/products?award=hidden_gem">
+              <AwardStamp type="hidden_gem" />
+            </Link>
           </div>
         </div>
       </section>
@@ -137,7 +143,7 @@ export default async function HomePage() {
             {CATEGORIES.filter((c) => c.value !== 'all').map(({ value, label, hook }) => (
               <Link
                 key={value}
-                href={`/category/${value}`}
+                href={`/products?category=${value}`}
                 id={`homepage-cat-${value}`}
                 className="border border-charcoal bg-paper p-4 hover:bg-charcoal hover:text-paper transition-all duration-150 group"
                 style={{ boxShadow: '2px 2px 0px 0px #121212' }}

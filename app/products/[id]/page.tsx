@@ -48,7 +48,11 @@ async function getProduct(id: string): Promise<Product | null> {
     return null;
   }
 
-  return (data as Product) ?? null;
+  if (!data) {
+    return null;
+  }
+
+  return data as Product;
 }
 
 export default async function ProductDetailPage(

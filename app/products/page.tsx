@@ -81,8 +81,9 @@ function ProductsPageInner() {
       }
 
       const { data } = await q;
-      let filteredProducts = data ?? [];
-
+    //  let filteredProducts = data ?? [];
+    let filteredProducts: Product[] = (data ?? []) as Product[];
+    
       // Client-side search filtering (name, brand, category)
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();

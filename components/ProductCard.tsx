@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import type { Product } from '@/lib/types';
 import { AwardBadge } from './AwardBadge';
 import { ScoreBar } from './ScoreBar';
@@ -62,12 +62,13 @@ function AffiliateButtons({ product }: { product: Product }) {
   return (
     <div className="flex gap-2 flex-wrap">
       {links.map((link, idx) => (
-        <a
+        <button
           key={`${link.store}-${idx}`}
-          href={link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            window.open(link.url, '_blank', 'noopener,noreferrer');
+          }}
           className={`text-xs py-2 px-3 flex-1 text-center font-sans font-bold transition-colors ${
             idx === 0
               ? 'bg-orange text-paper hover:bg-orange/90'
@@ -76,7 +77,7 @@ function AffiliateButtons({ product }: { product: Product }) {
           style={{ borderRadius: '2px' }}
         >
           {link.store} ↗
-        </a>
+        </button>
       ))}
     </div>
   );
@@ -84,7 +85,6 @@ function AffiliateButtons({ product }: { product: Product }) {
 
 export function ProductCard({ product, featured = false }: ProductCardProps) {
   const [imgError, setImgError] = useState(false);
-  const router = useRouter();
 
   // Formatting strings
   const title = `${product.brand} ${product.name}`;
@@ -208,14 +208,14 @@ export function ProductCard({ product, featured = false }: ProductCardProps) {
     </article>
   );
 
-  // Wrap entire card in a clickable container that navigates programmatically.
-  // This avoids rendering an <a> tag around the card so that inner affiliate <a> tags are valid HTML.
+  // Wrap entire card as a link to detail page; inner affiliate buttons are <button>, so no nested <a>.
   return (
-    <div
-      className="block h-full cursor-pointer"
-      onClick={() => router.push(`/products/${product.id}`)}
+    <Link
+      href={`/products/${product.id}`}
+      className="block h-full"
+      prefetch={false}
     >
       {cardContent}
-    </div>
+    </Link>
   );
 }

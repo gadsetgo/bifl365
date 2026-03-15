@@ -9,13 +9,17 @@ import { ProductImage } from '@/components/ProductImage';
 import { CATEGORY_LABELS } from '@/lib/constants';
 import type { Product } from '@/lib/types';
 
-type Props = { params: { id: string } };
+type Params = { id: string };
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(
+  { params }: { params: Promise<Params> }
+): Promise<Metadata> {
+  const { id } = await params;
+
   const { data } = await supabase
     .from('products')
     .select('name, brand, category, summary')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   const product = data as { name: string; brand: string; category: string; summary?: string | null } | null;
@@ -33,17 +37,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 async function getProduct(id: string): Promise<Product | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('products')
     .select('*')
     .eq('id', id)
-    .eq('status', 'published')
-    .single();
-  return data ?? null;
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error loading product detail', { id, error });
+    return null;
+  }
+
+  return (data as Product) ?? null;
 }
 
-export default async function ProductDetailPage({ params }: Props) {
-  const product = await getProduct(params.id);
+export default async function ProductDetailPage(
+  { params }: { params: Promise<Params> }
+) {
+  const { id } = await params;
+  const product = await getProduct(id);
+
   if (!product) notFound();
 
   const totalScore = product.scores

@@ -1,0 +1,45 @@
+{
+  "pipeline": {
+    "auto_approve_mode": false,
+    "products_per_category": 3,
+    "run_day": "Sunday",
+    "run_time": "22:30"
+  },
+  "categories": [
+    {
+      "value": "kitchen",
+      "label": "Kitchen Hardware",
+      "hook": "The last pan your grandkids will ever cook on."
+    },
+    {
+      "value": "edc",
+      "label": "Everyday Carry",
+      "hook": "Why I stopped buying plastic: The 10-year carry."
+    },
+    {
+      "value": "home",
+      "label": "Home Infrastructure",
+      "hook": "The \"Engineered in Germany\" tax: why it's actually cheaper."
+    },
+    {
+      "value": "travel",
+      "label": "Travel & Luggage",
+      "hook": "250 flights later: gear that refuses to die."
+    },
+    {
+      "value": "tech",
+      "label": "Premium Tech / Office",
+      "hook": "The ergonomic investment: 40,000 hours at a desk."
+    },
+    {
+      "value": "parenting",
+      "label": "Parenting & Baby",
+      "hook": "From newborn to teen: gear that grows and survives."
+    },
+    {
+      "value": "watches",
+      "label": "Watches",
+      "hook": "Timepieces that outlive their owners."
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-size: 16px;
+  }
+
+  body {
+    background-color: #FAF9F6;
+    color: #121212;
+    @apply font-sans antialiased min-h-screen;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+
+  /* Brutalist text selection */
+  ::selection {
+    background: #FF5733;
+    color: #FAF9F6;
+  }
+}
+
+@layer components {
+  /* Section label — small all-caps label */
+  .section-label {
+    font-family: var(--font-inter), system-ui, sans-serif;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: #555555;
+  }
+
+  /* Brutalist primary button */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background-color: #FF5733;
+    color: #FAF9F6;
+    font-family: var(--font-inter), system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.625rem 1.25rem;
+    border: 1px solid #FF5733;
+    box-shadow: 2px 2px 0px 0px #121212;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .btn-primary:hover {
+    background-color: #E64D2B;
+    box-shadow: 3px 3px 0px 0px #121212;
+  }
+  .btn-primary:active {
+    transform: translate(1px, 1px);
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background-color: transparent;
+    color: #121212;
+    font-family: var(--font-inter), system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.625rem 1.25rem;
+    border: 1px solid #121212;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .btn-ghost:hover {
+    background-color: #121212;
+    color: #FAF9F6;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

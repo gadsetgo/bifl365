@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { Product } from '@/lib/types';
 import { AwardBadge } from './AwardBadge';
 import { ScoreBar } from './ScoreBar';
@@ -84,6 +84,7 @@ function AffiliateButtons({ product }: { product: Product }) {
 
 export function ProductCard({ product, featured = false }: ProductCardProps) {
   const [imgError, setImgError] = useState(false);
+  const router = useRouter();
 
   // Formatting strings
   const title = `${product.brand} ${product.name}`;
@@ -207,14 +208,14 @@ export function ProductCard({ product, featured = false }: ProductCardProps) {
     </article>
   );
 
-  // Wrap entire card as a link to detail page
+  // Wrap entire card in a clickable container that navigates programmatically.
+  // This avoids rendering an <a> tag around the card so that inner affiliate <a> tags are valid HTML.
   return (
-    <Link
-      href={`/products/${product.id}`}
-      className="block h-full"
-      prefetch={false}
+    <div
+      className="block h-full cursor-pointer"
+      onClick={() => router.push(`/products/${product.id}`)}
     >
       {cardContent}
-    </Link>
+    </div>
   );
 }

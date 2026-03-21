@@ -4,6 +4,16 @@ import { CATEGORIES } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
+type SuggestionRow = {
+  id: string;
+  name: string;
+  category: string;
+  notes: string | null;
+  priority: number;
+  status: string;
+  created_at: string;
+};
+
 async function submitSuggestion(formData: FormData) {
   'use server';
   const name = formData.get('name') as string;
@@ -18,8 +28,8 @@ async function submitSuggestion(formData: FormData) {
     category,
     notes,
     priority,
-    status: 'pending' // Enforces the constraint on the API level
-  });
+    status: 'pending',
+  } as never);
 
   if (error) console.error("Error inserting suggestion:", error.message);
   revalidatePath('/admin/suggestions');
@@ -27,7 +37,7 @@ async function submitSuggestion(formData: FormData) {
 
 async function markDone(id: string) {
   'use server';
-  await supabase.from('product_suggestions').update({ status: 'done' }).eq('id', id);
+  await supabase.from('product_suggestions').update({ status: 'done' } as never).eq('id', id);
   revalidatePath('/admin/suggestions');
 }
 
@@ -38,10 +48,11 @@ async function deleteItem(id: string) {
 }
 
 export default async function SuggestionsPage() {
-  const { data: suggestions } = await supabase
+  const { data: raw } = await supabase
     .from('product_suggestions')
     .select('*')
     .order('created_at', { ascending: false });
+  const suggestions = (raw ?? []) as unknown as SuggestionRow[];
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-fade-in">

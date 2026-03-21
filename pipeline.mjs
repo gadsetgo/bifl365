@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSy
 import { join, resolve, basename, extname } from 'path';
 import http from 'http';
 import axios from 'axios';
+import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
 config();
@@ -38,7 +39,7 @@ function buildRuntimeConfig() {
     researchSource === 'local'
       ? normalizeProvider(process.env.PIPELINE_RESEARCH_PROVIDER, 'ollama')
       : researchSource === 'online'
-        ? normalizeProvider(process.env.PIPELINE_RESEARCH_PROVIDER, 'gemini')
+        ? normalizeProvider(process.env.PIPELINE_RESEARCH_PROVIDER, 'claude')
         : 'none';
 
   const scoringProvider =
@@ -86,6 +87,8 @@ function buildRuntimeConfig() {
     ollamaPort: parsePositiveInt(process.env.OLLAMA_PORT, 11434),
     geminiModel: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
     geminiApiKey: process.env.GEMINI_API_KEY || '',
+    claudeModel: process.env.CLAUDE_MODEL || 'claude-sonnet-4-6',
+    claudeApiKey: process.env.ANTHROPIC_API_KEY || '',
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
     supabaseUrl: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -113,6 +116,10 @@ function validateRuntime(currentRuntime) {
     throw new Error('GEMINI_API_KEY is required for online or Gemini-backed pipeline modes');
   }
 
+  if (requiresClaude(currentRuntime) && !currentRuntime.claudeApiKey) {
+    throw new Error('ANTHROPIC_API_KEY is required for Claude-backed pipeline modes');
+  }
+
   if (!currentRuntime.skipUpsert) {
     if (!currentRuntime.serviceRoleKey || !currentRuntime.supabaseUrl) {
       throw new Error('SUPABASE_SERVICE_ROLE_KEY and SUPABASE_URL are required unless PIPELINE_SKIP_UPSERT=true');
@@ -132,6 +139,14 @@ function requiresGemini(currentRuntime) {
   );
 }
 
+function requiresClaude(currentRuntime) {
+  return (
+    currentRuntime.researchProvider === 'claude' ||
+    currentRuntime.scoringProvider === 'claude' ||
+    currentRuntime.contentProvider === 'claude'
+  );
+}
+
 function normalizeMode(value, fallback) {
   const normalized = String(value || fallback).trim().toLowerCase();
   return ['local', 'import', 'online'].includes(normalized) ? normalized : fallback;
@@ -139,7 +154,7 @@ function normalizeMode(value, fallback) {
 
 function normalizeProvider(value, fallback) {
   const normalized = String(value || fallback).trim().toLowerCase();
-  return ['ollama', 'gemini', 'none'].includes(normalized) ? normalized : fallback;
+  return ['ollama', 'gemini', 'claude', 'none'].includes(normalized) ? normalized : fallback;
 }
 
 function normalizeUpsertMode(value, fallback) {
@@ -690,6 +705,16 @@ async function callGemini(prompt, options = {}) {
   }
 }
 
+async function callClaude(prompt) {
+  const client = new Anthropic({ apiKey: runtime.claudeApiKey });
+  const message = await client.messages.create({
+    model: runtime.claudeModel,
+    max_tokens: 4096,
+    messages: [{ role: 'user', content: prompt }]
+  });
+  return message.content[0]?.type === 'text' ? message.content[0].text : '';
+}
+
 const providers = {
   ollama: {
     async generateCandidates() {
@@ -912,6 +937,118 @@ ${JSON.stringify(products, null, 2)}`;
 
       const raw = await callGemini(prompt, { search: false });
       return normalizeContent(parseJsonPayload(raw, 'Gemini content response'));
+    }
+  },
+
+  claude: {
+    async generateCandidates() {
+      console.log(`[pipeline] Step 1: generating ${runtime.totalCandidates} candidates via Claude (${runtime.claudeModel})`);
+
+      const prompt = `You are a Buy It For Life product expert targeting Indian buyers.
+Surface exactly ${runtime.totalCandidates} durable product candidates across these categories: ${CATEGORY_NAMES}.
+Prefer products that are available in India and have meaningful real-world reputation.
+
+Return ONLY a JSON array of objects with:
+{
+  "name": "Product Name",
+  "brand": "Brand",
+  "category": "${categories[0]?.value || 'kitchen'}",
+  "price_inr": 1234,
+  "price_usd": 15,
+  "affiliate_links": [
+    { "store": "Amazon", "url": "https://www.amazon.in/s?k=Product+Name", "is_affiliate": false },
+    { "store": "Flipkart", "url": "https://www.flipkart.com/search?q=Product+Name", "is_affiliate": false }
+  ],
+  "image_url": null,
+  "research_notes": "Short summary of reputation, cultural context, or community trust"
+}
+
+Return pure JSON only. No markdown, no explanation.`;
+
+      const raw = await callClaude(prompt);
+      const payload = parseJsonPayload(raw, 'Claude candidate response');
+      const candidateArray = extractArray(payload, ['candidates', 'products', 'items', 'results']);
+      if (!candidateArray) {
+        throw new Error('Claude candidate response did not contain an array');
+      }
+
+      return candidateArray.map((candidate, index) => normalizeCandidate(candidate, index));
+    },
+
+    async scoreCandidates(candidates) {
+      console.log(`[pipeline] Step 2: scoring ${candidates.length} candidate(s) via Claude`);
+
+      const prompt = `You are the BIFL365 editorial AI.
+Score the following product candidates and return ONLY a JSON array. Do not wrap in markdown.
+
+PRODUCTS:
+${JSON.stringify(candidates, null, 2)}
+
+For each product include all original fields plus:
+{
+  "scores": {
+    "build_quality": 18,
+    "longevity": 19,
+    "value": 16,
+    "repairability": 15,
+    "india_availability": 18
+  },
+  "specs": {
+    "material": "Steel",
+    "warranty": "Lifetime",
+    "repairability_score": 8,
+    "made_in": "Japan",
+    "weight": "1.2 kg"
+  },
+  "award_type": "value_buy" | "forever_pick" | "hidden_gem" | "current_star" | null,
+  "summary": "100-200 word editorial summary",
+  "reddit_sentiment": "Short community sentiment summary",
+  "estimated_lifespan_years": 25,
+  "estimated_lifespan_multiplier": 5,
+  "week_of": "${weekOf}",
+  "is_featured": true | false
+}
+
+At least one product must have is_featured=true. Return pure JSON only.`;
+
+      const raw = await callClaude(prompt);
+      const payload = parseJsonPayload(raw, 'Claude scoring response');
+      const productArray = extractArray(payload, ['products', 'items', 'results']);
+      if (!productArray) {
+        throw new Error('Claude scoring response did not contain an array');
+      }
+
+      if (productArray.length !== candidates.length) {
+        console.warn(
+          `[pipeline] Claude returned ${productArray.length} scored product(s) but expected ${candidates.length}. Some candidates may have been dropped.`
+        );
+      }
+
+      return finalizeProducts(productArray);
+    },
+
+    async generateContent(products) {
+      console.log(`[pipeline] Step 3: generating content via Claude`);
+
+      const prompt = `You are the BIFL365 content team.
+Generate weekly promo content for these products and return ONLY a JSON object with these exact keys:
+{
+  "youtube_script": "600-word script",
+  "instagram_slide_1": "Text",
+  "instagram_slide_2": "Text",
+  "instagram_slide_3": "Text",
+  "instagram_slide_4": "Text",
+  "instagram_slide_5": "Text",
+  "blog_post": "Markdown blog post"
+}
+
+PRODUCTS:
+${JSON.stringify(products, null, 2)}
+
+Return pure JSON only. No markdown fences.`;
+
+      const raw = await callClaude(prompt);
+      return normalizeContent(parseJsonPayload(raw, 'Claude content response'));
     }
   }
 };

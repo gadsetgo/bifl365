@@ -1,18 +1,9 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import NextAuth from 'next-auth';
+import { authConfig } from './auth.config';
 
-export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Block /admin completely in production so it's never exposed on the live site
-  if (process.env.NODE_ENV === 'production' && pathname.startsWith('/admin')) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
-  return NextResponse.next();
-}
+export default NextAuth(authConfig).auth;
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  // Match all /admin paths EXCEPT /admin/login
+  matcher: ['/admin/((?!login).*)'],
 };
-

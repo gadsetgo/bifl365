@@ -18,6 +18,7 @@ import { config } from 'dotenv';
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import axios from 'axios';
 import { join } from 'path';
+import { createClient } from '@supabase/supabase-js';
 
 const configData = JSON.parse(readFileSync(join(process.cwd(), 'bifl365.config.json'), 'utf-8'));
 const { pipeline, categories } = configData;
@@ -32,11 +33,14 @@ config();
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-if (!GEMINI_KEY || !SERVICE_ROLE_KEY) {
-  console.error('Missing required env vars: GEMINI_API_KEY, SUPABASE_SERVICE_ROLE_KEY');
+if (!GEMINI_KEY || !SERVICE_ROLE_KEY || !SUPABASE_URL) {
+  console.error('Missing required env vars: GEMINI_API_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL');
   process.exit(1);
 }
+
+const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 async function callGemini(prompt) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
@@ -259,12 +263,33 @@ async function main() {
     await upsertProducts(products);
     const outDir = await generateContent(products);
 
+    // ✅ Update the most recent 'running' dashboard status to 'success'
+    const { data: run } = await supabase.from('pipeline_runs').select('id').eq('status', 'running').order('started_at', { ascending: false }).limit(1).maybeSingle();
+    if (run) {
+      await supabase.from('pipeline_runs').update({ 
+         status: 'success', 
+         products_found: candidates.length, 
+         products_approved: products.length,
+         completed_at: new Date().toISOString() 
+      }).eq('id', run.id);
+    }
+
     console.log(`\n✅ Pipeline complete!`);
     console.log(`   Products in DB: ${products.length}`);
     console.log(`   Content files:  ${outDir}`);
   } catch (err) {
     console.error('\n❌ Pipeline failed:');
     console.error(err.stack || err);
+    
+    // ❌ Update 'running' to 'failed' in the dashboard
+    const { data: run } = await supabase.from('pipeline_runs').select('id').eq('status', 'running').order('started_at', { ascending: false }).limit(1).maybeSingle();
+    if (run) {
+      await supabase.from('pipeline_runs').update({ 
+         status: 'failed', 
+         completed_at: new Date().toISOString() 
+      }).eq('id', run.id);
+    }
+    
     process.exit(1);
   }
 }

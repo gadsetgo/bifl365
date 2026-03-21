@@ -45,6 +45,13 @@ export interface Product {
   is_featured: boolean;
   status: 'draft' | 'published';
   created_at: string;
+  image_candidates?: string[];
+  image_approved?: boolean;
+  pipeline_status?: 'pending_review' | 'approved' | 'rejected' | 'live';
+  admin_notes?: string | null;
+  description_draft?: string | null;
+  video_url?: string | null;
+  reviewed_at?: string | null;
 }
 
 export type ProductInsert = Omit<Product, 'id' | 'created_at' | 'status'> & {

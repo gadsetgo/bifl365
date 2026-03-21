@@ -115,7 +115,7 @@ export function CompactFilterBar({
         <div className="flex items-center gap-1">
           {[
             { value: 'all', label: 'All' },
-            { value: 'best_buy', label: 'Best Buy' },
+            { value: 'value_buy', label: 'Value Buy' },
             { value: 'forever_pick', label: 'Forever' },
             { value: 'hidden_gem', label: 'Hidden' },
           ].map(({ value, label }) => {

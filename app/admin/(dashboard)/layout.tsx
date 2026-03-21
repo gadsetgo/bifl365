@@ -1,5 +1,6 @@
 import { auth, signOut } from '@/auth';
 import { AdminSidebar } from '@/components/AdminSidebar';
+import { supabase } from '@/lib/supabase';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -8,9 +9,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await auth();
   if (!session) redirect('/admin/login');
 
+  const [
+    { count: pendingReviewCount },
+    { count: imagesPendingCount }
+  ] = await Promise.all([
+    supabase.from('products').select('*', { count: 'exact', head: true }).eq('pipeline_status', 'pending_review'),
+    supabase.from('products').select('*', { count: 'exact', head: true }).eq('image_approved', false)
+  ]);
+
   return (
     <div className="min-h-screen bg-paper flex flex-col md:flex-row relative">
-      <AdminSidebar />
+      <AdminSidebar
+        pendingReviewCount={pendingReviewCount ?? 0}
+        imagesPendingCount={imagesPendingCount ?? 0}
+      />
       <div className="flex-1 flex flex-col min-w-0 md:ml-64">
         {/* Top Header */}
         <header className="h-14 bg-charcoal text-paper flex items-center justify-between px-4 sm:px-6 shrink-0 z-10 sticky top-0 shadow-sm border-b border-charcoal-600">
@@ -20,7 +32,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </span>
           </div>
           <div className="hidden md:flex items-center">
-             <span className="bg-orange text-paper text-[10px] font-sans uppercase tracking-widest px-2 py-0.5 rounded-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
+            <span className="bg-orange text-paper text-[10px] font-sans uppercase tracking-widest px-2 py-0.5 rounded-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
               Admin Interface
             </span>
           </div>

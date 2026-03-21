@@ -137,3 +137,12 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Pipeline error outputs
+error.json
+error.txt
+
+# Developer planning / session notes
+instructions.md
+implementation_plan.md
+pipeline_migration_status.md

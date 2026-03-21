@@ -78,7 +78,7 @@ export function ImageClient({ initialProducts }: { initialProducts: any[] }) {
              <div key={url} className={`relative border p-3 flex flex-col gap-3 ${i === 0 ? 'border-orange bg-orange-pale' : 'border-ghost bg-paper-dark'}`}>
                {i === 0 && (
                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange text-paper px-3 py-1 text-[10px] font-sans uppercase tracking-widest shadow-sm whitespace-nowrap z-10">
-                   ✦ Gemini Recommended ✦
+                   ✦ AI Recommended ✦
                  </div>
                )}
                <div className="relative w-full aspect-square bg-ghost overflow-hidden border border-charcoal">

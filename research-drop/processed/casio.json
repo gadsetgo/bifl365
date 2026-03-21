@@ -1,0 +1,57 @@
+{
+  "name": "Casio F91W",
+  "brand": "Casio",
+  "category": "watches",
+  "price_inr": 1295,
+  "price_usd": 16,
+  "affiliate_links": [
+    {
+      "store": "Amazon",
+      "url": "https://www.amazon.in/s?k=Casio+F91W",
+      "is_affiliate": false
+    },
+    {
+      "store": "Flipkart",
+      "url": "https://www.flipkart.com/search?q=Casio+F91W",
+      "is_affiliate": false
+    }
+  ],
+  "research_notes": "The Casio F91W, released in 1989, remains a benchmark for utilitarian efficiency and longevity. It is widely used as a beater watch because of its lightweight 21 g resin construction and slim 8.5 mm profile that slips easily under sleeves. Ownership cycles often span decades, and users frequently report the original CR2016 battery lasting beyond its 7-year rating, sometimes reaching 10 to 15 years. The internal Module 593 is generally regarded as shock resistant and accurate to plus or minus 30 seconds per month, while the external resin strap is the most common failure point and often needs replacement after a few years of daily wear. Its 30 m water resistance is officially meant for splashes and rain, though enthusiast anecdotes often describe it surviving more casual exposure. The watch has become culturally notable for its anti-consumerist reputation, being worn by everyone from students to world leaders. Despite modern smartwatch competition, it remains a strong seller in 2026 because it is cheap, legible, light, and easy to live with.",
+  "usage_scenarios": [
+    "Daily beater for manual work, commuting, or gym sessions.",
+    "Travel watch for low-theft environments where a flashy watch is unnecessary.",
+    "Low-profile digital watch for office or formal wear with tight shirt cuffs."
+  ],
+  "durability_takeaways": [
+    "The quartz module handles everyday knocks and vibration well.",
+    "The acrylic crystal is shatter resistant but picks up scratches easily.",
+    "Battery life is a major long-term strength and often exceeds the rated figure."
+  ],
+  "risks_or_limits": [
+    "The stock resin strap can become brittle and break after years of UV and sweat exposure.",
+    "The side LED backlight is weak and noticeably worse than modern digital watches.",
+    "It is not an ISO swim watch, so long-term water sealing should not be overestimated."
+  ],
+  "india_availability_notes": "Widely available in India through Casio sellers, Amazon.in, and Flipkart. Pricing is commonly in the budget digital-watch range and has gradually risen over time.",
+  "community_sentiment": "Often treated as the GOAT budget digital watch: honest, durable, and easy to recommend, though many enthusiasts note the weak backlight and strap wear.",
+  "scores": {
+    "build_quality": 18,
+    "longevity": 19,
+    "value": 20,
+    "repairability": 14,
+    "india_availability": 19
+  },
+  "specs": {
+    "material": "Resin case and strap",
+    "repairability_score": 6,
+    "weight": "21 g"
+  },
+  "award_type": "value_buy",
+  "summary": "Iconic ultra-budget digital watch with excellent battery life, daily durability, and unmatched value, let down mainly by strap wear and a weak backlight.",
+  "reddit_sentiment": "Budget-watch enthusiasts routinely praise it as an honest, long-lasting classic with almost unbeatable value.",
+  "estimated_lifespan_years": 10,
+  "estimated_lifespan_multiplier": 4,
+  "is_featured": true,
+  "status": "published",
+  "pipeline_status": "live"
+}

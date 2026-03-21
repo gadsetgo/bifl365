@@ -1,0 +1,39 @@
+{
+  "products": [
+    {
+      "name": "Casio F91W",
+      "brand": "Casio",
+      "category": "watches",
+      "price_inr": 1499,
+      "price_usd": 18,
+      "affiliate_links": [
+        {
+          "store": "Amazon",
+          "url": "https://www.amazon.in/s?k=Casio+F91W",
+          "is_affiliate": false
+        }
+      ],
+      "image_url": "https://example.com/casio-f91w.jpg",
+      "scores": {
+        "build_quality": 18,
+        "longevity": 19,
+        "value": 20,
+        "repairability": 14,
+        "india_availability": 19
+      },
+      "specs": {
+        "material": "Resin case",
+        "warranty": "2 years",
+        "repairability_score": 6,
+        "made_in": "Japan",
+        "weight": "21 g"
+      },
+      "award_type": "value_buy",
+      "summary": "Imported fully scored example product.",
+      "reddit_sentiment": "Imported example community sentiment.",
+      "estimated_lifespan_years": 10,
+      "estimated_lifespan_multiplier": 4,
+      "is_featured": true
+    }
+  ]
+}

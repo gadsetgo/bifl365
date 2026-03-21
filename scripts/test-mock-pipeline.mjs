@@ -29,7 +29,7 @@ const mockProducts = [
     image_url: "https://m.media-amazon.com/images/I/61k1KUMXm3L._AC_UY1000_.jpg",
     scores: { build_quality: 19, longevity: 20, value: 20, repairability: 15, india_availability: 20 },
     specs: { material: "Resin", warranty: "1 Year", repairability_score: 7, made_in: "China/Thailand", weight: "21g" },
-    award_type: "best_buy",
+    award_type: "value_buy",
     summary: "The Casio F91W isn't just a watch; it's a horological legend. Often dubbed the \"Obama to Osama\" watch due to its ubiquitous presence on the wrists of world leaders and infamous figures alike, this resin-built masterpiece offers unmatched durability. For less than the cost of a good dinner, you get a daily driver that survives swims, falls, and the roughest commutes. It runs for nearly 7 years out of the box. Absolutely essential everyday carry.",
     reddit_sentiment: "Unanimously praised. Replaced the strap after 5 years, the actual module still runs perfectly. A true BIFL item for peanuts.",
     estimated_lifespan_multiplier: 5,

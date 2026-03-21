@@ -1,0 +1,20 @@
+{
+  "candidates": [
+    {
+      "name": "Casio F91W",
+      "brand": "Casio",
+      "category": "watches",
+      "price_inr": 1499,
+      "price_usd": 18,
+      "affiliate_links": [
+        {
+          "store": "Amazon",
+          "url": "https://www.amazon.in/s?k=Casio+F91W",
+          "is_affiliate": false
+        }
+      ],
+      "image_url": "https://example.com/casio-f91w.jpg",
+      "research_notes": "Imported from external research output."
+    }
+  ]
+}

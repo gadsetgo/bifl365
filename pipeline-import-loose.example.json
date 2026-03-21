@@ -1,0 +1,20 @@
+{
+  "candidates": [
+    {
+      "title": "Casio F91W",
+      "manufacturer": "Casio",
+      "type": "watch",
+      "price": 1499,
+      "notes": "Famous budget digital watch with long battery life and strong everyday reputation."
+    },
+    {
+      "product": {
+        "product_name": "Victorinox Swiss Army Tinker",
+        "brand": "Victorinox",
+        "category": "edc",
+        "price_inr": 2800,
+        "description": "Popular durable multitool with long ownership history."
+      }
+    }
+  ]
+}

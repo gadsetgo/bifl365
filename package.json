@@ -7,7 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "pipeline": "node weekly-pipeline.mjs",
+    "pipeline": "node local-pipeline.mjs",
+    "pipeline:flex": "node pipeline.mjs",
+    "pipeline:dropbox": "node import-pipeline.mjs",
+    "pipeline:dropbox:publish": "node import-publish-pipeline.mjs",
+    "pipeline:dropbox:watch": "node watch-import-pipeline.mjs",
+    "pipeline:online": "node weekly-pipeline.mjs",
     "seed": "node scripts/seed.mjs"
   },
   "dependencies": {

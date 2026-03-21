@@ -1,0 +1,96 @@
+[
+  {
+    "name": "Casio AE1200WH-1AV (Royale)",
+    "brand": "Casio",
+    "category": "watches",
+    "price_inr": 2695,
+    "price_usd": 32,
+    "affiliate_links": [
+      { "store": "Amazon", "url": "https://www.amazon.in/s?k=Casio+AE1200WH-1AV", "is_affiliate": false },
+      { "store": "Flipkart", "url": "https://www.flipkart.com/search?q=Casio+AE1200WH-1AV", "is_affiliate": false }
+    ],
+    "research_notes": "The AE1200WH, nicknamed 'Casio Royale', is a high-utility travel watch celebrated for its 10-year battery life and sophisticated world-time module. It features a unique LCD world map and an analog-style digital sub-dial for home time reference. While the resin case is durable against shock, the silver-painted variants are known to show wear and scratches on the finish over time. The acrylic crystal is softer than mineral glass and prone to surface scuffs, though easily polished. It is rated for 100m water resistance, making it suitable for swimming but not professional diving. Community enthusiasts frequently modify this model with stainless steel cases and sapphire crystals to enhance its BIFL credentials. In India, it remains a top-tier budget recommendation due to its feature density relative to its sub-₹3000 price. Practical longevity is estimated at 10-15 years, primarily limited by the resin strap's degradation.",
+    "usage_scenarios": [
+      "Frequent international travel requiring quick toggling between four preset time zones.",
+      "Daily 'beater' use where a lightweight, low-profile digital interface is preferred.",
+      "Entry-level watch modding projects involving case swaps or filter tints."
+    ],
+    "durability_takeaways": [
+      "10-year CR2025 battery often exceeds manufacturer ratings in low-alarm usage.",
+      "100m water resistance allows for worry-free swimming and heavy rain exposure.",
+      "Resin construction provides excellent shock absorption for the internal module."
+    ],
+    "risks_or_limits": [
+      "Acrylic lens scratches easily compared to the mineral glass found on G-Shocks.",
+      "Silver case coating can peel or wear off under friction with shirt cuffs."
+    ],
+    "india_availability_notes": "Widely available through Casio India official stores and major e-commerce platforms; silver metal-bracelet versions often sell out faster.",
+    "community_sentiment": "Beloved 'James Bond' aesthetic on a budget; frequently cited as the best value-for-money world timer.",
+    "scores": {
+      "build_quality": 14,
+      "longevity": 17,
+      "value": 20,
+      "repairability": 15,
+      "india_availability": 19
+    },
+    "specs": {
+      "material": "Resin case / Stainless steel back",
+      "warranty": "2 Years Standard",
+      "repairability_score": 7,
+      "made_in": "China/Thailand",
+      "weight": "39 g"
+    },
+    "award_type": "hidden_gem",
+    "summary": "A retro-futuristic travel companion that offers world-class functionality for the price of a standard leather belt.",
+    "reddit_sentiment": "Highly praised for its 'cool factor' and legibility; considered a 'gateway' watch for collectors.",
+    "estimated_lifespan_years": 12,
+    "estimated_lifespan_multiplier": 4
+  },
+  {
+    "name": "Casio G-Shock DW5600E-1V",
+    "brand": "Casio",
+    "category": "watches",
+    "price_inr": 5495,
+    "price_usd": 65,
+    "affiliate_links": [
+      { "store": "Amazon", "url": "https://www.amazon.in/s?k=G-Shock+DW5600E-1V", "is_affiliate": false },
+      { "store": "Flipkart", "url": "https://www.flipkart.com/search?q=G-Shock+DW5600E-1V", "is_affiliate": false }
+    ],
+    "research_notes": "The DW5600E is the direct descendant of the original 1983 G-Shock, serving as the benchmark for rugged timepieces. It is flight-qualified by NASA for space missions and holds a Guinness World Record for surviving a 24-ton truck driving over it. Its primary strength is the hollow-core case structure and all-directional protective resin bezel that cushions the internal module. Unlike basic Casios, it features a scratch-resistant mineral crystal and 200m water resistance. The battery life is rated for 2 years but typically lasts 5+ in real-world conditions. A common user complaint is the recessed 'Adjust' button which requires a fingernail to depress, designed to prevent accidental changes. While the resin bezel may suffer 'resin rot' after 10-15 years, it is fully replaceable, making the core module a true lifetime asset. It is a staple in the Indian market for its indestructible reputation among military and outdoor professionals.",
+    "usage_scenarios": [
+      "Extreme outdoor activities including rock climbing, diving, and high-vibration work.",
+      "Minimalist everyday carry (EDC) for users prioritizing durability over smart features.",
+      "Professional use in military, police, or emergency services."
+    ],
+    "durability_takeaways": [
+      "200m water resistance allows for recreational scuba diving and high-pressure water sports.",
+      "Mineral glass lens provides significantly better scratch resistance than resin or acrylic.",
+      "Shock-resistant structure designed to survive 10-meter gravity drops."
+    ],
+    "risks_or_limits": [
+      "Adjust button is intentionally recessed and can be frustratingly difficult to press.",
+      "Display is basic with standard contrast; lacks the crispness of modern MIP displays."
+    ],
+    "india_availability_notes": "Always in stock; Casio India provides robust service support with parts like replacement bezels and straps.",
+    "community_sentiment": "The 'Gold Standard' of tough watches; zero ego, maximum performance.",
+    "scores": {
+      "build_quality": 19,
+      "longevity": 20,
+      "value": 18,
+      "repairability": 18,
+      "india_availability": 20
+    },
+    "specs": {
+      "material": "Resin / Mineral Glass",
+      "warranty": "2 Years + 6 Months (Online)",
+      "repairability_score": 9,
+      "made_in": "Thailand/Japan",
+      "weight": "53 g"
+    },
+    "award_type": "forever_pick",
+    "summary": "The definitive indestructible watch; a piece of horological history capable of outlasting its owner.",
+    "reddit_sentiment": "Regarded as the only watch you truly 'need'; frequently recommended as a one-and-done purchase.",
+    "estimated_lifespan_years": 25,
+    "estimated_lifespan_multiplier": 10
+  }
+]

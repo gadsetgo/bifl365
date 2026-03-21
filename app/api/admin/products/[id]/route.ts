@@ -2,16 +2,17 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { supabase } from '@/lib/supabase';
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return new NextResponse('Unauthorized', { status: 401 });
 
+  const { id } = await params;
   try {
-    const body = await request.json();
+    const body = await request.json() as Record<string, unknown>;
     const { data, error } = await supabase
       .from('products')
-      .update(body)
-      .eq('id', params.id)
+      .update(body as never)
+      .eq('id', id)
       .select()
       .single();
 

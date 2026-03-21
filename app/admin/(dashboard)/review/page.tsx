@@ -1,14 +1,16 @@
 import { supabase } from '@/lib/supabase';
 import { ReviewClient } from './ReviewClient';
+import type { Product } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ReviewPage() {
-  const { data: products } = await supabase
+  const { data: raw } = await supabase
     .from('products')
     .select('*')
     .eq('pipeline_status', 'pending_review')
     .order('created_at', { ascending: true });
+  const products = (raw ?? []) as unknown as Product[];
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
@@ -19,7 +21,7 @@ export default async function ReviewPage() {
         </p>
       </div>
 
-      <ReviewClient initialProducts={products || []} />
+      <ReviewClient initialProducts={products} />
     </div>
   );
 }

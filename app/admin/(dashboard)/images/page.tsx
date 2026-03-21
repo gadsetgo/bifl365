@@ -1,18 +1,21 @@
 import { supabase } from '@/lib/supabase';
 import { ImageClient } from './ImageClient';
+import type { Product } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ImagesPage() {
-  const { data: products } = await supabase
+  const { data: raw } = await supabase
     .from('products')
     .select('id, name, summary, category, image_candidates, video_url')
     .eq('image_approved', false)
     .not('image_candidates', 'is', null)
     .order('created_at', { ascending: true });
 
+  const products = (raw ?? []) as unknown as Product[];
+
   // Filter out any products where the array might somehow be empty
-  const validProducts = (products || []).filter(p => Array.isArray(p.image_candidates) && p.image_candidates.length > 0);
+  const validProducts = products.filter(p => Array.isArray(p.image_candidates) && p.image_candidates.length > 0);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">

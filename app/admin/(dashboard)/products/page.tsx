@@ -1,13 +1,15 @@
 import { supabase } from '@/lib/supabase';
 import { ProductsClient } from './ProductsClient';
+import type { Product } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminProductsPage() {
-  const { data: products } = await supabase
+  const { data: raw } = await supabase
     .from('products')
     .select('*')
     .order('created_at', { ascending: false });
+  const products = (raw ?? []) as unknown as Product[];
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
@@ -18,7 +20,7 @@ export default async function AdminProductsPage() {
         </p>
       </div>
 
-      <ProductsClient initialProducts={products || []} />
+      <ProductsClient initialProducts={products} />
     </div>
   );
 }

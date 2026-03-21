@@ -51,6 +51,7 @@ async function callGemini(prompt) {
   } catch (err) {
     if (err.response) {
       console.error("AXIOS ERROR DATA:", JSON.stringify(err.response.data, null, 2));
+      writeFileSync('error.json', JSON.stringify(err.response.data, null, 2));
       throw new Error(`Gemini API Error: ${err.response.status}`);
     }
     throw err;

@@ -69,47 +69,26 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Right: Why BIFL? benefit block */}
-            <div className="border border-charcoal-600 bg-charcoal-700 divide-y divide-charcoal-600">
-              {[
-                { icon: '⏳', label: 'Built to Last a Lifetime', desc: 'Not "premium" — actually built to outlive trends, owners, and regret.' },
-                { icon: '🇮🇳', label: 'Scored for India', desc: 'Every pick is weighed on local availability, price-to-durability, and repairability in Indian cities.' },
-                { icon: '🔧', label: 'Repairability Rated', desc: 'A product you can fix is worth ten you cannot. We score this explicitly.' },
-                { icon: '🏆', label: 'Three Award Tiers', desc: 'Best Buy, Forever Pick, and Hidden Gem — every week, with no paid placements.' },
-              ].map(({ icon, label, desc }) => (
-                <div key={label} className="flex items-start gap-4 px-5 py-4">
-                  <span className="text-xl mt-0.5">{icon}</span>
-                  <div>
-                    <p className="text-xs font-sans font-bold text-paper uppercase tracking-wider">{label}</p>
-                    <p className="text-xs font-sans text-charcoal-400 mt-0.5 leading-relaxed">{desc}</p>
-                  </div>
-                </div>
-              ))}
+            {/* Right: Awards Showcase */}
+            <div className="grid grid-cols-2 gap-4">
+              <Link href="/products?award=value_buy" className="block h-full">
+                <div className="h-full"><AwardStamp type="value_buy" /></div>
+              </Link>
+              <Link href="/products?award=current_star" className="block h-full">
+                <div className="h-full"><AwardStamp type="current_star" /></div>
+              </Link>
+              <Link href="/products?award=forever_pick" className="block h-full">
+                <div className="h-full"><AwardStamp type="forever_pick" /></div>
+              </Link>
+              <Link href="/products?award=hidden_gem" className="block h-full">
+                <div className="h-full"><AwardStamp type="hidden_gem" /></div>
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── AWARD TYPES ── */}
-      <section className="border-b border-charcoal">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-baseline gap-4 mb-8">
-            <h2 className="font-serif font-bold text-2xl text-ink">Three Tiers of Excellence</h2>
-            <div className="flex-1 h-px bg-charcoal" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link href="/products?award=best_buy">
-              <AwardStamp type="best_buy" />
-            </Link>
-            <Link href="/products?award=forever_pick">
-              <AwardStamp type="forever_pick" />
-            </Link>
-            <Link href="/products?award=hidden_gem">
-              <AwardStamp type="hidden_gem" />
-            </Link>
-          </div>
-        </div>
-      </section>
+
 
       {/* ── FEATURED PRODUCT ── */}
       {featured && (

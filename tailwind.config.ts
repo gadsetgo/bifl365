@@ -41,11 +41,11 @@ const config: Config = {
         "2xs": ["0.65rem", { lineHeight: "1rem" }],
       },
       boxShadow: {
-        // Brutalist: no soft shadows — only hard offsets
-        card: "2px 2px 0px 0px #121212",
-        "card-hover": "4px 4px 0px 0px #121212",
-        "card-orange": "2px 2px 0px 0px #FF5733",
-        "card-orange-hover": "4px 4px 0px 0px #FF5733",
+        // Premium soft shadows
+        card: "0 10px 30px -10px rgba(0,0,0,0.1)",
+        "card-hover": "0 20px 40px -10px rgba(0,0,0,0.15)",
+        "card-orange": "0 10px 30px -10px rgba(255,87,51,0.2)",
+        "card-orange-hover": "0 20px 40px -10px rgba(255,87,51,0.3)",
       },
       animation: {
         "fade-in": "fadeIn 0.4s ease-out forwards",

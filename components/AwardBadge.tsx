@@ -8,8 +8,8 @@ interface AwardBadgeProps {
 }
 
 const AWARD_CONFIG: Record<AwardType, { label: string; symbol: string; bg: string; border: string; text: string }> = {
-  best_buy: {
-    label: 'Best Buy',
+  value_buy: {
+    label: 'Value Buy',
     symbol: '◆',
     bg: 'bg-orange',
     border: 'border-charcoal',
@@ -18,8 +18,8 @@ const AWARD_CONFIG: Record<AwardType, { label: string; symbol: string; bg: strin
   forever_pick: {
     label: 'Forever Pick',
     symbol: '∞',
-    bg: 'bg-charcoal',
-    border: 'border-charcoal',
+    bg: 'bg-charcoal-600',
+    border: 'border-charcoal-400',
     text: 'text-paper',
   },
   hidden_gem: {
@@ -28,6 +28,13 @@ const AWARD_CONFIG: Record<AwardType, { label: string; symbol: string; bg: strin
     bg: 'bg-paper',
     border: 'border-charcoal',
     text: 'text-ink',
+  },
+  current_star: {
+    label: 'Current Star',
+    symbol: '★',
+    bg: 'bg-orange-pale text-orange',
+    border: 'border-orange',
+    text: 'text-orange',
   },
 };
 
@@ -61,15 +68,16 @@ export function AwardBadge({ type, size = 'md' }: AwardBadgeProps) {
 export function AwardStamp({ type }: { type: AwardType }) {
   const cfg = AWARD_CONFIG[type];
   const descriptions: Record<AwardType, string> = {
-    best_buy: 'Best price-to-durability ratio for Indian buyers',
+    value_buy: 'Best price-to-durability ratio for Indian buyers',
     forever_pick: 'Absolute best build quality, regardless of price',
     hidden_gem: 'Under-the-radar BIFL pick most people haven\'t tried',
+    current_star: 'A good buy in recently trending products',
   };
 
   return (
     <div
       className={`
-        flex flex-col gap-3 p-6 border border-charcoal
+        flex flex-col gap-3 p-6 border ${cfg.border}
         ${cfg.bg} ${cfg.text}
         transition-all duration-200 cursor-pointer
         hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#121212]

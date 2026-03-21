@@ -1,4 +1,4 @@
-export type AwardType = 'best_buy' | 'forever_pick' | 'hidden_gem';
+export type AwardType = 'value_buy' | 'forever_pick' | 'hidden_gem' | 'current_star';
 export type CategoryType = 'kitchen' | 'edc' | 'home' | 'travel' | 'tech' | 'parenting' | 'watches';
 
 export interface AffiliateLink {
@@ -34,6 +34,8 @@ export interface Product {
   specs: ProductSpecs | null;
   award_type: AwardType | null;
   affiliate_links: AffiliateLink[] | null;
+  affiliate_url_amazon?: string | null;
+  affiliate_url_flipkart?: string | null;
   estimated_lifespan_multiplier: number | null;
   estimated_lifespan_years: number | null;
   image_url: string | null;

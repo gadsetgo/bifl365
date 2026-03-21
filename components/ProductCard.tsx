@@ -56,7 +56,11 @@ function SpecsBar({ product, featured = false }: { product: Product; featured?: 
 }
 
 function AffiliateButtons({ product }: { product: Product }) {
-  const links = product.affiliate_links ?? [];
+  const links = [...(product.affiliate_links ?? [])];
+  if (links.length === 0) {
+    if (product.affiliate_url_amazon) links.push({ store: 'Amazon', url: product.affiliate_url_amazon, is_affiliate: false });
+    if (product.affiliate_url_flipkart) links.push({ store: 'Flipkart', url: product.affiliate_url_flipkart, is_affiliate: false });
+  }
   if (links.length === 0) return null;
 
   return (
@@ -95,24 +99,22 @@ export function ProductCard({ product, featured = false }: ProductCardProps) {
   const cardContent = (
     <article
       className={`
-        group relative bg-paper border border-charcoal h-full
-        transition-all duration-200
-        hover:-translate-x-0.5 hover:-translate-y-0.5
+        group relative bg-paper border border-gray-100 rounded-xl overflow-hidden h-full
+        transition-all duration-300 shadow-card hover:shadow-card-hover hover:-translate-y-1
         ${featured ? 'md:flex md:flex-row' : 'flex flex-col'}
       `}
-      style={{ boxShadow: '3px 3px 0px 0px #121212' }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = '5px 5px 0px 0px #FF5733';
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.boxShadow = '3px 3px 0px 0px #121212';
-      }}
     >
+      {/* Lifespan Prominent Badge (Top Right) */}
+      {product.estimated_lifespan_years && (
+        <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur border border-orange/20 text-orange font-sans font-bold text-xs px-3 py-1.5 rounded-full shadow-sm">
+          {product.estimated_lifespan_years} Years expected
+        </div>
+      )}
       {/* Image area */}
       <div
         className={`
-          relative overflow-hidden bg-paper-dark border-b border-charcoal
-          ${featured ? 'md:w-2/5 h-72 md:h-auto md:border-b-0 md:border-r' : 'h-52'}
+          relative overflow-hidden bg-white border-b border-gray-100
+          ${featured ? 'md:w-2/5 h-80 md:h-auto md:border-b-0 md:border-r' : 'h-64'}
         `}
       >
         {product.image_url && !imgError ? (
@@ -139,7 +141,7 @@ export function ProductCard({ product, featured = false }: ProductCardProps) {
 
         {/* Week badge */}
         {product.is_featured && (
-          <div className="absolute top-0 left-0 bg-orange text-paper text-2xs font-sans font-bold uppercase tracking-widest px-2 py-1">
+          <div className="absolute top-4 left-4 bg-charcoal text-white text-xs font-sans font-bold uppercase tracking-widest px-3 py-1 rounded-full shadow-md">
             This Week
           </div>
         )}

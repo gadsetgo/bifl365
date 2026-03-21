@@ -48,7 +48,7 @@
     font-size: 0.875rem;
     padding: 0.625rem 1.25rem;
     border: 1px solid #FF5733;
-    box-shadow: 2px 2px 0px 0px #121212;
+    box-shadow: 0 4px 14px 0 rgba(255,87,51,0.39);
     transition: all 0.15s ease;
     text-decoration: none;
     white-space: nowrap;
@@ -56,10 +56,10 @@
   }
   .btn-primary:hover {
     background-color: #E64D2B;
-    box-shadow: 3px 3px 0px 0px #121212;
+    box-shadow: 0 6px 20px 0 rgba(255,87,51,0.23);
   }
   .btn-primary:active {
-    transform: translate(1px, 1px);
+    transform: translateY(1px);
   }
 
   /* Ghost button */

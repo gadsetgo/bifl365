@@ -147,7 +147,7 @@ export default async function ProductDetailPage(
           <div className="md:col-span-3 space-y-7">
             {/* Image */}
             {product.image_url && (
-              <div className="relative h-72 border border-charcoal bg-white overflow-hidden" style={{ boxShadow: '3px 3px 0px 0px #121212' }}>
+              <div className="relative h-80 rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-card">
                 <ProductImage src={product.image_url} alt={product.name} />
               </div>
             )}
@@ -156,10 +156,10 @@ export default async function ProductDetailPage(
             {specTiles.length > 0 && (
               <div>
                 <p className="text-[10px] font-sans font-bold uppercase tracking-widest text-charcoal-400 mb-3">Specs at a Glance</p>
-                <div className="border border-charcoal bg-paper-dark" style={{ boxShadow: '2px 2px 0px 0px #121212' }}>
-                  <div className="flex flex-wrap divide-x divide-charcoal">
+                <div className="border border-gray-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                  <div className="flex flex-wrap divide-x divide-gray-100">
                     {specTiles.map(({ label, value, highlight }) => (
-                      <div key={label} className="flex flex-col px-4 py-3 min-w-[100px]">
+                      <div key={label} className={`flex flex-col px-5 py-4 min-w-[100px] ${highlight ? 'bg-orange-pale/30' : ''}`}>
                         <span className="text-[10px] font-sans font-bold uppercase tracking-widest text-charcoal-400 mb-0.5">{label}</span>
                         <span className={`text-sm font-sans font-bold ${highlight ? 'text-orange' : 'text-ink'}`}>{value}</span>
                       </div>
@@ -171,7 +171,7 @@ export default async function ProductDetailPage(
 
             {/* BIFL Score breakdown */}
             {product.scores && (
-              <div className="border border-charcoal p-5" style={{ boxShadow: '2px 2px 0px 0px #121212' }}>
+              <div className="border border-gray-200 rounded-xl p-6 shadow-sm bg-white">
                 <p className="text-[10px] font-sans font-bold uppercase tracking-widest text-charcoal-400 mb-4">Score Breakdown</p>
                 <ScoreBar scores={product.scores} totalScore={totalScore ?? undefined} />
               </div>
@@ -187,12 +187,12 @@ export default async function ProductDetailPage(
 
             {/* Community verdict */}
             {product.reddit_sentiment && (
-              <div className="border border-charcoal p-5 bg-paper-dark">
+              <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 bg-orange" />
+                  <div className="w-2 h-2 bg-orange rounded-full" />
                   <p className="text-[10px] font-sans font-bold uppercase tracking-widest text-charcoal-400">Community Verdict</p>
                 </div>
-                <p className="text-sm font-sans text-ink leading-relaxed italic">&quot;{product.reddit_sentiment}&quot;</p>
+                <p className="text-sm font-sans text-charcoal-600 leading-relaxed italic">&quot;{product.reddit_sentiment}&quot;</p>
               </div>
             )}
           </div>
@@ -200,8 +200,7 @@ export default async function ProductDetailPage(
           {/* Sidebar */}
           <aside className="md:col-span-2">
             <div
-              className="border border-charcoal p-5 md:sticky md:top-20 space-y-5"
-              style={{ boxShadow: '3px 3px 0px 0px #121212' }}
+              className="rounded-2xl border border-gray-100 p-6 md:sticky md:top-20 space-y-6 bg-white shadow-card"
             >
               {/* Price */}
               {product.price_inr && (
@@ -232,26 +231,34 @@ export default async function ProductDetailPage(
               )}
 
               {/* Affiliate buy links */}
-              {product.affiliate_links && product.affiliate_links.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-sans font-bold uppercase tracking-widest text-charcoal-400">Where to Buy</p>
-                  {product.affiliate_links.map((link, idx) => (
+              {(() => {
+                const links = [...(product.affiliate_links ?? [])];
+                if (links.length === 0) {
+                  if (product.affiliate_url_amazon) links.push({ store: 'Amazon', url: product.affiliate_url_amazon, is_affiliate: false });
+                  if (product.affiliate_url_flipkart) links.push({ store: 'Flipkart', url: product.affiliate_url_flipkart, is_affiliate: false });
+                }
+                if (links.length === 0) return null;
+                return (
+                  <div className="space-y-2 mt-5">
+                    <p className="text-[10px] font-sans font-bold uppercase tracking-widest text-charcoal-400">Where to Buy</p>
+                    {links.map((link, idx) => (
                     <a
                       key={`${link.store}-${idx}`}
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={`block w-full text-center text-sm py-2.5 px-4 font-sans font-bold transition-colors ${
+                      className={`block w-full text-center text-sm py-3 px-4 font-sans font-bold transition-all rounded-lg ${
                         idx === 0
-                          ? 'bg-orange text-paper hover:bg-orange/90'
-                          : 'border border-charcoal text-ink hover:bg-charcoal hover:text-paper'
+                          ? 'bg-orange text-white hover:bg-orange/90 shadow-[0_4px_14px_0_rgba(255,87,51,0.39)] hover:shadow-[0_6px_20px_0_rgba(255,87,51,0.23)] hover:-translate-y-0.5'
+                          : 'border border-gray-200 text-charcoal-700 hover:bg-gray-50'
                       }`}
                     >
                       Buy on {link.store} ↗
                     </a>
                   ))}
                 </div>
-              )}
+                );
+              })()}
 
               {/* Award */}
               {product.award_type && (

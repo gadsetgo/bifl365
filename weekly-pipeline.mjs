@@ -42,7 +42,12 @@ if (!GEMINI_KEY || !SERVICE_ROLE_KEY || !SUPABASE_URL) {
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-async function callGemini(prompt) {
+const delay = ms => new Promise(res => setTimeout(res, ms));
+
+const RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 30000; // 30 seconds
+
+async function callGemini(prompt, attempt = 1) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
   try {
     const response = await axios.post(url, {
@@ -54,6 +59,14 @@ async function callGemini(prompt) {
     return text.replace(/```json?\n?/g, '').replace(/```\n?/g, '').trim();
   } catch (err) {
     if (err.response) {
+      const status = err.response.status;
+      if (status === 429 && attempt <= RETRIES) {
+        const delayMs = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+        console.warn(`\n[API Limits] ⏳ Gemini API Rate limited (429). Retrying attempt ${attempt}/${RETRIES} in ${delayMs / 1000}s...`);
+        await delay(delayMs);
+        return callGemini(prompt, attempt + 1);
+      }
+
       console.error("AXIOS ERROR DATA:", JSON.stringify(err.response.data, null, 2));
       writeFileSync('error.json', JSON.stringify(err.response.data, null, 2));
       throw new Error(`Gemini API Error: ${err.response.status}`);
@@ -101,7 +114,7 @@ Return pure JSON array only. No markdown, no explanation.`;
   return candidates;
 }
 
-const delay = ms => new Promise(res => setTimeout(res, ms));
+// Removed duplicate delay function.
 
 // ─── Step 2 & 3: Gemini scores + picks winners ────────────────────────────────
 

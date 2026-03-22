@@ -21,6 +21,7 @@ export async function generateMetadata(
     .from('products')
     .select('name, brand, category, summary, image_url, scores')
     .eq('id', id)
+    .eq('status', 'published')
     .single();
 
   const product = data as { name: string; brand: string; category: string; summary?: string | null; image_url?: string | null; scores?: Record<string, number> | null } | null;
@@ -50,6 +51,7 @@ async function getProduct(id: string): Promise<Product | null> {
     .from('products')
     .select('*')
     .eq('id', id)
+    .eq('status', 'published')
     .maybeSingle();
 
   if (error) {

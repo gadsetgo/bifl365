@@ -33,6 +33,7 @@ export async function GET(request: Request) {
     .from('products')
     .select('affiliate_links, affiliate_url_amazon, affiliate_url_flipkart')
     .eq('id', product_id)
+    .eq('status', 'published')
     .maybeSingle();
 
   if (!product) {

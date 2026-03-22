@@ -6,6 +6,7 @@ export async function GET() {
     .from('products')
     .select('*')
     .eq('is_featured', true)
+    .eq('status', 'published')
     .order('week_of', { ascending: false })
     .limit(1)
     .single();

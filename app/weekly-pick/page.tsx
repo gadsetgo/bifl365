@@ -5,6 +5,7 @@ import { ScoreBar } from '@/components/ScoreBar';
 import { ProductImage } from '@/components/ProductImage';
 import { ShareButtons } from '@/components/ShareButtons';
 import type { Product } from '@/lib/types';
+import { getDisplayLinks } from '@/lib/affiliate-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -224,11 +225,8 @@ export default async function WeeklyPickPage() {
 
               {/* Affiliate buy links */}
               {(() => {
-                const links = [...(product.affiliate_links ?? [])];
-                if (links.length === 0) {
-                  if (product.affiliate_url_amazon) links.push({ store: 'Amazon', url: product.affiliate_url_amazon, is_affiliate: false });
-                  if (product.affiliate_url_flipkart) links.push({ store: 'Flipkart', url: product.affiliate_url_flipkart, is_affiliate: false });
-                }
+                const displayName = `${product.brand} ${product.name}`;
+                const links = getDisplayLinks(product.affiliate_links, product.affiliate_url_amazon, product.affiliate_url_flipkart, displayName);
                 if (links.length === 0) return null;
                 return (
                   <div className="space-y-2 mt-5">
@@ -236,16 +234,18 @@ export default async function WeeklyPickPage() {
                     {links.map((link, idx) => (
                     <a
                       key={`${link.store}-${idx}`}
-                      href={`/api/go?product_id=${product.id}&store=${encodeURIComponent(link.store)}`}
+                      href={link.isSearch ? link.url : `/api/go?product_id=${product.id}&store=${encodeURIComponent(link.store)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={`block w-full text-center text-sm py-3 px-4 font-sans font-bold transition-all rounded-lg ${
-                        idx === 0
+                        idx === 0 && !link.isSearch
                           ? 'bg-orange text-white hover:bg-orange/90 shadow-[0_4px_14px_0_rgba(255,87,51,0.39)] hover:shadow-[0_6px_20px_0_rgba(255,87,51,0.23)] hover:-translate-y-0.5'
-                          : 'border border-gray-200 text-charcoal-700 hover:bg-gray-50'
+                          : link.isSearch
+                            ? 'border border-dashed border-gray-300 text-charcoal-500 hover:border-charcoal hover:text-ink'
+                            : 'border border-gray-200 text-charcoal-700 hover:bg-gray-50'
                       }`}
                     >
-                      Buy on {link.store} ↗
+                      {link.isSearch ? `Search ${link.store}` : `Buy on ${link.store} ↗`}
                     </a>
                   ))}
                 </div>

@@ -8,6 +8,7 @@ const ALLOWED_HOSTNAMES = new Set([
   'amazon.com',
   'flipkart.com',
   'meesho.com',
+  'google.com',
 ]);
 
 const paramsSchema = z.object({

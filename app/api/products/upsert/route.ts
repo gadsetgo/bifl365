@@ -22,13 +22,32 @@ export async function POST(request: NextRequest) {
 
   const results = await Promise.allSettled(
     products.map(async (product) => {
-      const { data, error } = await supabase
+      // Check for existing product by name (case-insensitive)
+      const { data: existing } = await supabase
         .from('products')
-        .upsert(product, { onConflict: 'name,week_of', ignoreDuplicates: false })
         .select('id, name')
-        .single();
-      if (error) throw error;
-      return data;
+        .ilike('name', product.name)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        const { data, error } = await supabase
+          .from('products')
+          .update(product as never)
+          .eq('id', existing.id)
+          .select('id, name')
+          .single();
+        if (error) throw error;
+        return data;
+      } else {
+        const { data, error } = await supabase
+          .from('products')
+          .insert(product as never)
+          .select('id, name')
+          .single();
+        if (error) throw error;
+        return data;
+      }
     })
   );
 

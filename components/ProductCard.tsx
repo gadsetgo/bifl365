@@ -7,6 +7,7 @@ import type { Product } from '@/lib/types';
 import { AwardBadge } from './AwardBadge';
 import { ScoreBar } from './ScoreBar';
 import { CATEGORY_LABELS } from '@/lib/constants';
+import { getDisplayLinks } from '@/lib/affiliate-utils';
 
 interface ProductCardProps {
   product: Product;
@@ -56,11 +57,8 @@ function SpecsBar({ product, featured = false }: { product: Product; featured?: 
 }
 
 function AffiliateButtons({ product }: { product: Product }) {
-  const links = [...(product.affiliate_links ?? [])];
-  if (links.length === 0) {
-    if (product.affiliate_url_amazon) links.push({ store: 'Amazon', url: product.affiliate_url_amazon, is_affiliate: false });
-    if (product.affiliate_url_flipkart) links.push({ store: 'Flipkart', url: product.affiliate_url_flipkart, is_affiliate: false });
-  }
+  const displayName = `${product.brand} ${product.name}`;
+  const links = getDisplayLinks(product.affiliate_links, product.affiliate_url_amazon, product.affiliate_url_flipkart, displayName);
   if (links.length === 0) return null;
 
   return (
@@ -71,16 +69,22 @@ function AffiliateButtons({ product }: { product: Product }) {
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            window.open(`/api/go?product_id=${product.id}&store=${encodeURIComponent(link.store)}`, '_blank', 'noopener,noreferrer');
+            if (link.isSearch) {
+              window.open(link.url, '_blank', 'noopener,noreferrer');
+            } else {
+              window.open(`/api/go?product_id=${product.id}&store=${encodeURIComponent(link.store)}`, '_blank', 'noopener,noreferrer');
+            }
           }}
           className={`text-xs py-2 px-3 flex-1 text-center font-sans font-bold transition-colors ${
-            idx === 0
+            idx === 0 && !link.isSearch
               ? 'bg-orange text-paper hover:bg-orange/90'
-              : 'border border-charcoal text-ink hover:bg-charcoal hover:text-paper'
+              : link.isSearch
+                ? 'border border-dashed border-charcoal-300 text-charcoal-500 hover:border-charcoal hover:text-ink'
+                : 'border border-charcoal text-ink hover:bg-charcoal hover:text-paper'
           }`}
           style={{ borderRadius: '2px' }}
         >
-          {link.store} ↗
+          {link.isSearch ? `Search ${link.store}` : `${link.store} ↗`}
         </button>
       ))}
     </div>

@@ -1259,14 +1259,36 @@ async function upsertProducts(products) {
   console.log('[pipeline] Step 4: upserting directly to Supabase');
   const results = await Promise.allSettled(
     products.map(async (product) => {
-      const { data, error } = await supabase
+      // Check for existing product by name (case-insensitive)
+      const { data: existing } = await supabase
         .from('products')
-        .upsert(product, { onConflict: 'name,week_of', ignoreDuplicates: false })
         .select('id, name')
-        .single();
+        .ilike('name', product.name)
+        .limit(1)
+        .maybeSingle();
 
-      if (error) throw error;
-      return data;
+      if (existing) {
+        // Update existing product
+        const { data, error } = await supabase
+          .from('products')
+          .update(product)
+          .eq('id', existing.id)
+          .select('id, name')
+          .single();
+        if (error) throw error;
+        console.log(`[pipeline] Updated existing: ${existing.name}`);
+        return data;
+      } else {
+        // Insert new product
+        const { data, error } = await supabase
+          .from('products')
+          .insert(product)
+          .select('id, name')
+          .single();
+        if (error) throw error;
+        console.log(`[pipeline] Inserted new: ${product.name}`);
+        return data;
+      }
     })
   );
 

@@ -7,6 +7,36 @@ import { ProductCard } from '@/components/ProductCard';
 import type { Product, CategoryType, AwardType } from '@/lib/types';
 
 type WeekFilter = 'all' | 'this_week' | 'previous_weeks';
+type SortOption = 'newest' | 'oldest' | 'score_high' | 'score_low' | 'price_low' | 'price_high' | 'name_az';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'newest', label: 'Newest First' },
+  { value: 'oldest', label: 'Oldest First' },
+  { value: 'score_high', label: 'Score: High → Low' },
+  { value: 'score_low', label: 'Score: Low → High' },
+  { value: 'price_low', label: 'Price: Low → High' },
+  { value: 'price_high', label: 'Price: High → Low' },
+  { value: 'name_az', label: 'Name: A → Z' },
+];
+
+function totalScore(p: Product): number {
+  if (!p.scores) return 0;
+  return p.scores.build_quality + p.scores.longevity + p.scores.value + p.scores.repairability + p.scores.india_availability;
+}
+
+function sortProducts(products: Product[], sort: SortOption): Product[] {
+  const sorted = [...products];
+  switch (sort) {
+    case 'newest': return sorted.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    case 'oldest': return sorted.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    case 'score_high': return sorted.sort((a, b) => totalScore(b) - totalScore(a));
+    case 'score_low': return sorted.sort((a, b) => totalScore(a) - totalScore(b));
+    case 'price_low': return sorted.sort((a, b) => (a.price_inr ?? Infinity) - (b.price_inr ?? Infinity));
+    case 'price_high': return sorted.sort((a, b) => (b.price_inr ?? 0) - (a.price_inr ?? 0));
+    case 'name_az': return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    default: return sorted;
+  }
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +46,7 @@ function ProductsPageInner() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [latestWeek, setLatestWeek] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortOption>('newest');
 
   const awardFilter = (searchParams.get('award') as AwardType | 'all') ?? 'all';
   const categoryFilter = (searchParams.get('category') as CategoryType | 'all') ?? 'all';
@@ -109,6 +140,14 @@ function ProductsPageInner() {
                   Award: {awardFilter.replace('_', ' ')}
                 </span>
               )}
+              {/* Sort dropdown */}
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortOption)}
+                className="h-7 px-2 text-2xs font-sans font-semibold border border-charcoal bg-paper focus:outline-none focus:border-orange cursor-pointer appearance-none pr-5"
+              >
+                {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
             </div>
           </div>
         )}
@@ -132,7 +171,7 @@ function ProductsPageInner() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 pt-2">
-            {products.map((p) => (
+            {sortProducts(products, sort).map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
           </div>

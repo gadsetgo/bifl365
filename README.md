@@ -2,33 +2,38 @@
 
 > **Buy It For Life** — Weekly AI-curated product awards for products engineered to last decades.
 
----
-
-## What is bifl365?
-
-bifl365.com is an automated product intelligence platform that surfaces the best long-lasting products worth every rupee. Inspired by the r/BuyItForLife community (1.5M+ members), it awards products across three categories every week — fully powered by AI with minimal human effort.
-
 **Live at:** https://bifl365.com
 
 ---
 
-## Award Categories
+## What is bifl365?
 
-| Award | Description |
-|---|---|
-| 🥇 BIFL Best Buy | Best quality-to-price ratio for Indian buyers |
-| 💎 BIFL Forever Pick | The one to get if money is no object |
-| 🔍 BIFL Hidden Gem | Underrated and overlooked by most |
+bifl365.com is an automated product intelligence platform that surfaces the best long-lasting products worth every rupee. Inspired by the r/BuyItForLife community (1.5M+ members), it scores and awards products every week — powered by AI with human review.
+
+---
+
+## Award Types
+
+| Award | Code | Description |
+|---|---|---|
+| Value Buy | `value_buy` | Best quality-to-price ratio for Indian buyers |
+| Forever Pick | `forever_pick` | The one to get if money is no object |
+| Hidden Gem | `hidden_gem` | Underrated and overlooked by most |
+| Current Star | `current_star` | A good buy in recently trending products |
 
 ---
 
 ## Product Categories
 
-- Desk & Work
-- Kitchen
-- Tools
-- Carry
-- Home
+| Category | Label |
+|---|---|
+| `kitchen` | Kitchen Hardware |
+| `edc` | Everyday Carry |
+| `home` | Home Infrastructure |
+| `travel` | Travel & Luggage |
+| `tech` | Premium Tech / Office |
+| `parenting` | Parenting & Baby |
+| `watches` | Watches |
 
 ---
 
@@ -36,17 +41,14 @@ bifl365.com is an automated product intelligence platform that surfaces the best
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 14 (App Router) |
-| Styling | Tailwind CSS |
+| Framework | Next.js 16 (App Router) |
+| Styling | Tailwind CSS 3 |
 | Database | Supabase (Postgres) |
-| Hosting | Vercel (Hobby) |
-| AI — Data collection | Google Gemini 2.0 Flash |
-| AI — Scoring & writing | Anthropic Claude Sonnet |
+| Auth | NextAuth 5 (Google OAuth) |
+| Hosting | Vercel |
+| AI Providers | Google Gemini, Anthropic Claude, Ollama (local) |
 | Automation | GitHub Actions (cron) |
-| Video voiceover | ElevenLabs |
-| Video assembly | Invideo AI |
-| Social scheduling | Buffer |
-| Analytics | Vercel Analytics + Google Analytics 4 |
+| Analytics | Vercel Analytics |
 
 ---
 
@@ -55,220 +57,160 @@ bifl365.com is an automated product intelligence platform that surfaces the best
 ```
 bifl365/
 ├── app/
-│   ├── page.tsx                  # Homepage — hero + awards + featured
-│   ├── products/
-│   │   └── page.tsx              # All products with category filter
-│   ├── weekly-pick/
-│   │   └── page.tsx              # Featured product deep dive
-│   ├── category/
-│   │   └── [slug]/
-│   │       └── page.tsx          # Per-category pages
+│   ├── page.tsx                        # Homepage
+│   ├── products/page.tsx               # All products with category filter
+│   ├── products/[id]/page.tsx          # Product detail page
+│   ├── weekly-pick/page.tsx            # Featured product deep dive
+│   ├── category/[slug]/page.tsx        # Per-category pages
+│   ├── admin/
+│   │   ├── login/page.tsx              # Google OAuth login
+│   │   └── (dashboard)/
+│   │       ├── board/                  # Main product management board
+│   │       ├── review/                 # Review queue with keyboard shortcuts
+│   │       ├── pipeline/               # Pipeline trigger + prompt library
+│   │       └── analytics/              # Dashboard metrics
 │   └── api/
-│       ├── products/
-│       │   ├── upsert/
-│       │   │   └── route.ts      # POST — pipeline writes products
-│       │   └── featured/
-│       │       └── route.ts      # GET — returns this week's featured
-├── components/
-│   ├── ProductCard.tsx
-│   ├── AwardBadge.tsx
-│   ├── ScoreBar.tsx
-│   └── CategoryStrip.tsx
+│       ├── products/                   # Public: featured, upsert
+│       ├── go/route.ts                 # Affiliate click-tracking redirect
+│       └── admin/                      # Auth-protected: products, enrich,
+│                                       #   suggestions, pipeline, config
+├── components/                         # Shared React components
 ├── lib/
-│   ├── supabase.ts               # Supabase client
-│   └── types.ts                  # Product type definitions
-├── scripts/
-│   └── seed.js                   # One-time DB seed with 10 products
-├── weekly-pipeline.js            # Automated Monday pipeline
-├── output/                       # Pipeline output (gitignored)
-│   └── week-[date]/
-│       ├── youtube-script.txt
-│       ├── instagram-slide-1.txt
-│       ├── instagram-slide-2.txt
-│       ├── instagram-slide-3.txt
-│       ├── instagram-slide-4.txt
-│       ├── instagram-slide-5.txt
-│       └── blog-post.md
-├── .github/
-│   └── workflows/
-│       └── weekly.yml            # GitHub Actions cron job
-├── .env.local                    # Local env vars (never commit)
-└── README.md
+│   ├── types.ts                        # Product, AffiliateLink, score types
+│   ├── constants.ts                    # Categories, labels, affiliate tag
+│   ├── supabase.ts                     # Supabase browser + server clients
+│   └── pipeline-scoring.ts             # Score calculation utilities
+├── pipeline.mjs                        # Multi-provider AI pipeline
+├── bifl365.config.json                 # Categories, affiliate tag, pipeline settings
+├── auth.ts                             # NextAuth config
+├── middleware.ts                        # Admin route protection
+└── supabase/migrations/                # 001–010 SQL migrations
+```
+
+---
+
+## Scoring System
+
+Products are scored across 5 dimensions (each 1–20, total out of 100):
+
+```json
+{
+  "build_quality": 20,
+  "longevity": 18,
+  "value": 16,
+  "repairability": 14,
+  "india_availability": 15
+}
 ```
 
 ---
 
 ## Database Schema
 
-### Table: `products`
+### Core Tables
 
-```sql
-CREATE TABLE products (
-  id                    UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name                  TEXT NOT NULL,
-  brand                 TEXT NOT NULL,
-  category              TEXT CHECK (category IN ('desk','kitchen','tools','carry','home')),
-  price_inr             INTEGER,
-  price_usd             INTEGER,
-  scores                JSONB,
-  award_type            TEXT CHECK (award_type IN ('best_buy','forever_pick','hidden_gem')),
-  affiliate_url_amazon  TEXT,
-  affiliate_url_flipkart TEXT,
-  image_url             TEXT,
-  summary               TEXT,
-  reddit_sentiment      TEXT,
-  week_of               DATE,
-  is_featured           BOOLEAN DEFAULT false,
-  created_at            TIMESTAMPTZ DEFAULT now()
-);
-```
+- **`products`** — Main product data, scores (JSONB), specs (JSONB), affiliate_links (JSONB array), image candidates, pipeline status, review state
+- **`product_suggestions`** — Admin queue for products to research next
+- **`pipeline_runs`** — Automation run history and status
+- **`affiliate_clicks`** — Click tracking for affiliate links (no IP stored)
 
-### Scores JSONB structure
+### Key Columns on `products`
 
-```json
-{
-  "build_quality":       20,
-  "longevity":           18,
-  "value":               16,
-  "repairability":       14,
-  "india_availability":  15
-}
-```
+| Column | Type | Notes |
+|---|---|---|
+| `scores` | JSONB | `{build_quality, longevity, value, repairability, india_availability}` |
+| `specs` | JSONB | `{material, warranty, repairability_score, made_in, weight}` |
+| `affiliate_links` | JSONB | `[{store, url, is_affiliate}]` |
+| `award_type` | TEXT | `value_buy \| forever_pick \| hidden_gem \| current_star` |
+| `category` | TEXT | `kitchen \| edc \| home \| travel \| tech \| parenting \| watches` |
+| `pipeline_status` | TEXT | `pending_review \| live \| rejected` |
+| `status` | TEXT | `draft \| published` |
+| `image_candidates` | JSONB | Array of candidate image URLs from pipeline |
+| `image_approved` | BOOLEAN | Set true when admin picks final image |
 
-Each dimension is scored 1–20. Total = **BIFL Score out of 100.**
+---
 
-### RLS Policies
+## Pipeline
 
-```sql
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+The pipeline generates product candidates, scores them, and upserts to Supabase. Configurable via env vars and `bifl365.config.json`.
 
-CREATE POLICY "Public can read products"
-ON products FOR SELECT USING (true);
+### Modes
 
-CREATE POLICY "Service role can write"
-ON products FOR ALL USING (auth.role() = 'service_role');
-```
+| Command | Source | Use Case |
+|---|---|---|
+| `npm run pipeline` | Local Ollama | Offline development |
+| `npm run pipeline:flex` | Config-driven (Gemini/Claude/Ollama) | Primary pipeline |
+| `npm run pipeline:online` | Online Gemini | Cloud-only environments |
+| `npm run pipeline:dropbox` | JSON import files | External research import |
+
+### Pipeline Steps
+
+1. **Research** — AI generates product candidates with affiliate links, prices, specs
+2. **Scoring** — AI scores each product across 5 BIFL dimensions
+3. **Upsert** — Products written to Supabase (direct or via API)
+4. **Content** — Blog posts, YouTube scripts, Instagram slides generated
+
+### Affiliate Link Sanitization
+
+The pipeline automatically:
+- Drops Amazon search URLs (`/s?k=...`)
+- Ensures `?tag=bifl365-21` on all Amazon product URLs
+- Sets `is_affiliate: true` for tagged Amazon links
 
 ---
 
 ## Environment Variables
 
-### Vercel (all environments)
+### Required
 
 ```env
-SUPABASE_URL=https://[your-ref].supabase.co
-SUPABASE_ANON_KEY=your_publishable_key
-ANTHROPIC_API_KEY=your_anthropic_key
-GEMINI_API_KEY=your_gemini_key
-```
-
-### Vercel (production only)
-
-```env
-SUPABASE_SERVICE_ROLE_KEY=your_secret_key
-NEXT_PUBLIC_SITE_URL=https://bifl365.com
-```
-
-### Local `.env.local`
-
-```env
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-ANTHROPIC_API_KEY=
-GEMINI_API_KEY=
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=AIza...
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-### GitHub Actions Secrets
+### Auth (for admin panel)
 
-```
-ANTHROPIC_API_KEY
-GEMINI_API_KEY
-SUPABASE_URL
-SUPABASE_SERVICE_ROLE_KEY
-```
-
----
-
-## Weekly Automation Pipeline
-
-The pipeline runs every **Monday at 4:00am IST** via GitHub Actions.
-
-### What it does
-
-```
-1. Gemini 2.0 Flash
-   → Searches Reddit r/BuyItForLife + Amazon India + general product knowledge
-   → Returns 10 BIFL product candidates with raw data
-
-2. Claude Sonnet (per product)
-   → Scores each product across 5 dimensions (1–20 each)
-   → Writes 200-word BIFL case for each product
-   → Picks 3 award winners for the week
-
-3. Supabase
-   → Upserts all 10 products via POST /api/products/upsert
-   → Sets is_featured = true on the Best Buy winner
-
-4. Output files written to /output/week-[YYYY-MM-DD]/
-   → youtube-script.txt    (600 words, voiceover-ready)
-   → instagram-slide-1 to 5.txt
-   → blog-post.md          (400 words, SEO optimised)
+```env
+AUTH_SECRET=random-secret
+AUTH_GOOGLE_ID=your-google-oauth-client-id
+AUTH_GOOGLE_SECRET=your-google-oauth-client-secret
+ADMIN_EMAIL=your-email@gmail.com
 ```
 
-### GitHub Actions workflow
+### Pipeline (optional)
 
-```yaml
-# .github/workflows/weekly.yml
-name: Weekly AI Pipeline
-on:
-  schedule:
-    - cron: "30 22 * * 0"  # Sunday 10:30pm UTC = Monday 4am IST
-  workflow_dispatch:        # Manual trigger via GitHub UI
-jobs:
-  run-pipeline:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18
-      - run: npm install
-      - run: node weekly-pipeline.js
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+```env
+PIPELINE_RESEARCH_PROVIDER=gemini      # ollama | gemini | claude
+PIPELINE_SCORING_PROVIDER=gemini       # ollama | gemini | claude | none
+PIPELINE_CONTENT_PROVIDER=gemini       # ollama | gemini | claude | none
+PIPELINE_TOTAL_CANDIDATES=3
+PIPELINE_SKIP_UPSERT=false
+GEMINI_MODEL=gemini-2.5-flash
 ```
+
+See `.env.example` for the full list.
 
 ---
 
 ## Local Development
 
 ```bash
-# Clone the repo
 git clone https://github.com/gadsetgo/bifl365.git
 cd bifl365
-
-# Install dependencies
 npm install
-
-# Fill in your env vars
-cp .env.local.example .env.local
-# edit .env.local with your keys
-
-# Run locally
-npm run dev
-# → http://localhost:3000
-
-# Seed the database (run once)
-node scripts/seed.js
-
-# Test the pipeline manually
-node weekly-pipeline.js
+cp .env.example .env.local    # fill in your keys
+npm run dev                   # http://localhost:3000
 ```
+
+### Admin Panel
+
+Visit `/admin/login` and sign in with the Google account matching `ADMIN_EMAIL`. The admin board at `/admin/board` lets you review, enrich, approve/reject products and manage affiliate links.
 
 ---
 
@@ -276,73 +218,19 @@ node weekly-pipeline.js
 
 Every push to `main` auto-deploys to Vercel.
 
-```bash
-git add .
-git commit -m "your message"
-git push origin main
-# → bifl365.com live in ~2 min
-```
+### GitHub Actions
+
+The pipeline runs on a cron schedule (configurable in `.github/workflows/weekly.yml`) and can be triggered manually via GitHub UI with provider and category selection.
 
 ---
 
 ## Monetisation
 
-| Stream | Platform | When it pays |
-|---|---|---|
-| Affiliate commissions | Amazon Associates India + Flipkart Affiliate | Day 1 |
-| Display ads | Google AdSense | Month 2–3 (post-approval) |
-| YouTube ad revenue | YouTube Partner Program | ~1,000 subscribers |
-| Brand partnerships | Direct outreach | Month 4+ |
-| Newsletter sponsors | Beehiiv / Substack | Month 3+ |
-
----
-
-## Monthly Operating Cost
-
-| Item | Cost |
+| Stream | Platform |
 |---|---|
-| Domain (bifl365.com) | ₹900/yr → ₹75/mo |
-| Vercel hosting | ₹0 (free tier) |
-| Supabase database | ₹0 (free tier) |
-| GitHub Actions | ₹0 (public repo) |
-| Claude API (~4 pipeline runs) | ~₹250/mo |
-| Gemini API (Jio free) | ₹0 |
-| ElevenLabs voiceover | ₹0 (free tier) |
-| Invideo AI (video assembly) | ₹1,670/mo |
-| Buffer (social scheduling) | ₹0 (free tier) |
-| **Total** | **~₹2,000/mo** |
-
----
-
-## Roadmap
-
-### Month 1 — Launch
-- [x] Domain + hosting live
-- [x] Supabase DB configured
-- [x] GitHub Actions pipeline
-- [ ] Site built and deployed
-- [ ] 10 seed products live
-- [ ] Amazon + Flipkart affiliate links active
-- [ ] First automated pipeline run
-
-### Month 2 — Content & SEO
-- [ ] Google Search Console verified
-- [ ] Google AdSense applied
-- [ ] First YouTube video published
-- [ ] Instagram Reels started
-- [ ] Newsletter signup added
-
-### Month 3 — Growth
-- [ ] 50+ products in DB across all categories
-- [ ] Category pages ranking on Google
-- [ ] YouTube at 100+ subscribers
-- [ ] First affiliate commission received
-
-### Month 6 — Scale
-- [ ] AdSense approved and earning
-- [ ] YouTube monetisation eligible (1K subs)
-- [ ] Brand partnership outreach
-- [ ] ₹25,000+/mo revenue target
+| Affiliate commissions | Amazon Associates India (`tag=bifl365-21`) |
+| Display ads | Google AdSense |
+| YouTube ad revenue | YouTube Partner Program |
 
 ---
 
@@ -350,14 +238,7 @@ git push origin main
 
 - **Live site:** https://bifl365.com
 - **GitHub:** https://github.com/gadsetgo/bifl365
-- **Vercel dashboard:** https://vercel.com/gadsetgos-projects/bifl365
-- **Supabase dashboard:** https://supabase.com/dashboard/project/[your-ref]
-- **Amazon Associates:** https://affiliate-program.amazon.in
-- **Flipkart Affiliate:** https://affiliate.flipkart.com
-- **Google Search Console:** https://search.google.com/search-console
 
 ---
 
 *Built with Claude Code · Powered by Gemini + Anthropic · Hosted on Vercel*
-#   b i f l 3 6 5  
- 

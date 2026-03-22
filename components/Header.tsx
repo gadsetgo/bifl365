@@ -10,8 +10,10 @@ function HeaderInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
 
   const categoryParam = searchParams.get('category') || 'all';
   const awardParam = searchParams.get('award') || 'all';
@@ -26,8 +28,16 @@ function HeaderInner() {
       router.push(`/products?${params.toString()}`);
       setSearchQuery('');
       searchInputRef.current?.blur();
+      mobileSearchInputRef.current?.blur();
       setMobileMenuOpen(false);
+      setMobileSearchOpen(false);
     }
+  }
+
+  function openMobileSearch() {
+    setMobileSearchOpen(true);
+    setMobileMenuOpen(false);
+    setTimeout(() => mobileSearchInputRef.current?.focus(), 50);
   }
 
   function updateFilter(key: string, value: string) {
@@ -109,9 +119,20 @@ function HeaderInner() {
               </div>
             </div>
 
+            {/* Mobile search icon */}
+            <button
+              onClick={openMobileSearch}
+              className="lg:hidden h-9 w-9 flex items-center justify-center border border-charcoal bg-paper hover:bg-paper-dark transition-colors"
+              aria-label="Search"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+
             {/* Mobile menu toggle */}
             <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              onClick={() => { setMobileMenuOpen(!mobileMenuOpen); setMobileSearchOpen(false); }}
               className="lg:hidden h-9 px-3 text-xs font-sans font-semibold border border-charcoal bg-paper hover:bg-paper-dark flex items-center gap-1"
             >
               Menu {mobileMenuOpen ? '▲' : '▼'}
@@ -129,18 +150,40 @@ function HeaderInner() {
         </div>
       </div>
 
+      {/* Mobile expanding search bar */}
+      {mobileSearchOpen && (
+        <div className="lg:hidden bg-paper border-b border-charcoal px-4 py-3 shadow-inner">
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                ref={mobileSearchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search products..."
+                className="h-10 w-full px-3 pr-9 text-sm font-sans border border-charcoal bg-paper focus:outline-none focus:border-orange"
+              />
+              <button type="submit" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-charcoal-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setMobileSearchOpen(false); setSearchQuery(''); }}
+              className="h-10 w-10 flex items-center justify-center border border-charcoal bg-paper hover:bg-paper-dark text-charcoal-400 transition-colors shrink-0"
+              aria-label="Close search"
+            >
+              ✕
+            </button>
+          </form>
+        </div>
+      )}
+
       {/* Mobile expanding filter menu */}
       {mobileMenuOpen && (
         <div className="lg:hidden bg-paper-dark border-b border-charcoal px-4 py-4 space-y-3 shadow-inner">
-          <form onSubmit={handleSearch} className="w-full">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search products..."
-              className="h-10 w-full px-3 text-sm font-sans border border-charcoal bg-paper focus:outline-none focus:border-orange"
-            />
-          </form>
           <div className="grid grid-cols-2 gap-2">
             <select value={categoryParam} onChange={(e) => updateFilter('category', e.target.value)} className={`${dropdownClass} w-full h-10`}>
               {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}

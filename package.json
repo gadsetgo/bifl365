@@ -12,10 +12,10 @@
     "pipeline:dropbox": "node import-pipeline.mjs",
     "pipeline:dropbox:publish": "node import-publish-pipeline.mjs",
     "pipeline:dropbox:watch": "node watch-import-pipeline.mjs",
-    "pipeline:online": "node weekly-pipeline.mjs",
-    "seed": "node scripts/seed.mjs"
+    "pipeline:online": "node weekly-pipeline.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@google/generative-ai": "^0.21.0",
     "@supabase/supabase-js": "^2.49.2",
     "axios": "^1.13.6",
@@ -24,7 +24,8 @@
     "next-auth": "^5.0.0-beta.30",
     "pg": "^8.20.0",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^20",

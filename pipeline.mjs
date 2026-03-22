@@ -5,12 +5,14 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSy
 import { join, resolve, basename, extname } from 'path';
 import http from 'http';
 import axios from 'axios';
+import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
 config();
 
 const configData = JSON.parse(readFileSync(join(process.cwd(), 'bifl365.config.json'), 'utf-8'));
 const { pipeline, categories } = configData;
+const AFFILIATE_TAG = configData.affiliate_tag || 'bifl365-21';
 
 const VALID_CATEGORIES = new Set(categories.map((category) => category.value));
 const CATEGORY_NAMES = categories.map((category) => category.value).join('|');
@@ -80,12 +82,14 @@ function buildRuntimeConfig() {
     archiveImports: readBooleanEnv('PIPELINE_IMPORT_ARCHIVE', true),
     upsertMode: normalizeUpsertMode(process.env.PIPELINE_UPSERT_MODE, 'direct'),
     totalCandidates: parsePositiveInt(process.env.PIPELINE_TOTAL_CANDIDATES, 3),
-    skipUpsert: readBooleanEnv('PIPELINE_SKIP_UPSERT', false),
+    skipUpsert: readBooleanEnv('PIPELINE_SKIP_UPSERT', process.env.NODE_ENV !== 'production'),
     ollamaModel: process.env.OLLAMA_MODEL || 'phi3:latest',
     ollamaHost: process.env.OLLAMA_HOST || 'localhost',
     ollamaPort: parsePositiveInt(process.env.OLLAMA_PORT, 11434),
-    geminiModel: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+    geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
     geminiApiKey: process.env.GEMINI_API_KEY || '',
+    claudeApiKey: process.env.ANTHROPIC_API_KEY || '',
+    claudeModel: process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001',
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
     supabaseUrl: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -113,6 +117,10 @@ function validateRuntime(currentRuntime) {
     throw new Error('GEMINI_API_KEY is required for online or Gemini-backed pipeline modes');
   }
 
+  if (requiresClaude(currentRuntime) && !currentRuntime.claudeApiKey) {
+    throw new Error('ANTHROPIC_API_KEY required for Claude provider');
+  }
+
   if (!currentRuntime.skipUpsert) {
     if (!currentRuntime.serviceRoleKey || !currentRuntime.supabaseUrl) {
       throw new Error('SUPABASE_SERVICE_ROLE_KEY and SUPABASE_URL are required unless PIPELINE_SKIP_UPSERT=true');
@@ -132,6 +140,14 @@ function requiresGemini(currentRuntime) {
   );
 }
 
+function requiresClaude(currentRuntime) {
+  return (
+    currentRuntime.researchProvider === 'claude' ||
+    currentRuntime.scoringProvider === 'claude' ||
+    currentRuntime.contentProvider === 'claude'
+  );
+}
+
 function normalizeMode(value, fallback) {
   const normalized = String(value || fallback).trim().toLowerCase();
   return ['local', 'import', 'online'].includes(normalized) ? normalized : fallback;
@@ -139,7 +155,7 @@ function normalizeMode(value, fallback) {
 
 function normalizeProvider(value, fallback) {
   const normalized = String(value || fallback).trim().toLowerCase();
-  return ['ollama', 'gemini', 'none'].includes(normalized) ? normalized : fallback;
+  return ['ollama', 'gemini', 'claude', 'none'].includes(normalized) ? normalized : fallback;
 }
 
 function normalizeUpsertMode(value, fallback) {
@@ -321,6 +337,28 @@ function normalizeAffiliateLinks(raw) {
   }
 
   return [];
+}
+
+function sanitizeAffiliateLinks(links) {
+  return links
+    .filter((link) => {
+      // Drop search URLs
+      if (link.url.includes('/s?k=') || link.url.includes('/search?q=')) return false;
+      return true;
+    })
+    .map((link) => {
+      try {
+        const parsed = new URL(link.url);
+        const host = parsed.hostname.toLowerCase();
+        if (host.includes('amazon.in') || host.includes('amazon.com')) {
+          parsed.searchParams.set('tag', AFFILIATE_TAG);
+          return { ...link, url: parsed.toString(), is_affiliate: true };
+        }
+      } catch {
+        // Invalid URL — keep as-is
+      }
+      return link;
+    });
 }
 
 function buildLegacyAffiliateLinks(raw) {
@@ -534,10 +572,10 @@ function normalizeCandidate(raw, index) {
     );
   }
 
-  const affiliateLinks = [
+  const affiliateLinks = sanitizeAffiliateLinks([
     ...normalizeAffiliateLinks(candidate.affiliate_links),
     ...buildLegacyAffiliateLinks(candidate)
-  ];
+  ]);
 
   return {
     name,
@@ -564,8 +602,12 @@ function normalizeProduct(raw, index) {
   const candidate = normalizeCandidate(raw, index);
   const status = normalizeStatus(raw.status, candidate.affiliate_links);
 
+  // Strip intermediate fields that exist on candidate but have no matching DB column
+  // eslint-disable-next-line no-unused-vars
+  const { reddit_context, research_notes, ...candidateFields } = candidate;
+
   return {
-    ...candidate,
+    ...candidateFields,
     scores: normalizeScores(raw),
     specs: normalizeSpecs(raw),
     award_type: normalizeAwardType(firstText(raw.award_type, raw.award, raw.badge)),
@@ -690,6 +732,17 @@ async function callGemini(prompt, options = {}) {
   }
 }
 
+async function callClaude(prompt) {
+  const client = new Anthropic({ apiKey: runtime.claudeApiKey });
+  const response = await client.messages.create({
+    model: runtime.claudeModel,
+    max_tokens: 4096,
+    temperature: 0.4,
+    messages: [{ role: 'user', content: prompt }]
+  });
+  return response.content[0].text;
+}
+
 const providers = {
   ollama: {
     async generateCandidates() {
@@ -706,12 +759,13 @@ Each object must follow this shape:
   "price_inr": 1234,
   "price_usd": 15,
   "affiliate_links": [
-    { "store": "Amazon", "url": "https://www.amazon.in/s?k=Product+Name", "is_affiliate": false }
+    { "store": "Amazon", "url": "https://www.amazon.in/dp/REAL_ASIN?tag=${AFFILIATE_TAG}", "is_affiliate": true }
   ],
   "image_url": "https://example.com/product.jpg",
   "research_notes": "1-2 sentence research note about why this is durable and relevant."
 }
 
+IMPORTANT: Use the real Amazon ASIN in the affiliate URL (format: /dp/ASIN). Never use search URLs like /s?k=...
 Use only categories from this set: ${CATEGORY_NAMES}.`;
 
       const raw = await callOllama(prompt);
@@ -821,13 +875,16 @@ Return ONLY a JSON array of objects with:
   "price_inr": 1234,
   "price_usd": 15,
   "affiliate_links": [
-    { "store": "Amazon", "url": "https://www.amazon.in/s?k=Product+Name", "is_affiliate": false },
-    { "store": "Flipkart", "url": "https://www.flipkart.com/search?q=Product+Name", "is_affiliate": false }
+    { "store": "Amazon", "url": "https://www.amazon.in/dp/REAL_ASIN?tag=${AFFILIATE_TAG}", "is_affiliate": true },
+    { "store": "Flipkart", "url": "https://www.flipkart.com/product-name/p/REAL_ITEM_ID", "is_affiliate": false }
   ],
   "image_url": "Real direct product image URL",
   "research_notes": "Short summary of reputation, cultural context, or community trust"
 }
 
+Use Google Search to find the exact Amazon India product page for each item.
+Build Amazon affiliate URLs as: https://www.amazon.in/dp/ASIN?tag=${AFFILIATE_TAG}
+Never use search URLs like /s?k=... or /search?q=...
 Return pure JSON only.`;
 
       const raw = await callGemini(prompt, { search: true });
@@ -912,6 +969,119 @@ ${JSON.stringify(products, null, 2)}`;
 
       const raw = await callGemini(prompt, { search: false });
       return normalizeContent(parseJsonPayload(raw, 'Gemini content response'));
+    }
+  },
+
+  claude: {
+    async generateCandidates() {
+      console.log(`[pipeline] Step 1: generating ${runtime.totalCandidates} candidates via Claude (${runtime.claudeModel})`);
+
+      const prompt = `You are a Buy It For Life product expert targeting Indian buyers.
+Surface exactly ${runtime.totalCandidates} durable product candidates across these categories: ${CATEGORY_NAMES}.
+Prefer products that are available in India and have meaningful real-world reputation.
+
+Return ONLY a JSON array of objects with:
+{
+  "name": "Product Name",
+  "brand": "Brand",
+  "category": "${categories[0]?.value || 'kitchen'}",
+  "price_inr": 1234,
+  "price_usd": 15,
+  "affiliate_links": [
+    { "store": "Amazon", "url": "https://www.amazon.in/dp/REAL_ASIN?tag=${AFFILIATE_TAG}", "is_affiliate": true },
+    { "store": "Flipkart", "url": "https://www.flipkart.com/product-name/p/REAL_ITEM_ID", "is_affiliate": false }
+  ],
+  "image_url": "Real direct product image URL",
+  "research_notes": "Short summary of reputation, cultural context, or community trust"
+}
+
+Find the exact Amazon India product page for each item and use the real ASIN.
+Build Amazon affiliate URLs as: https://www.amazon.in/dp/ASIN?tag=${AFFILIATE_TAG}
+Never use search URLs like /s?k=... or /search?q=...
+Return pure JSON only.`;
+
+      const raw = await callClaude(prompt);
+      const payload = parseJsonPayload(raw, 'Claude candidate response');
+      const candidateArray = extractArray(payload, ['candidates', 'products', 'items', 'results']);
+      if (!candidateArray) {
+        throw new Error('Claude candidate response did not contain an array');
+      }
+
+      return candidateArray.map((candidate, index) => normalizeCandidate(candidate, index));
+    },
+
+    async scoreCandidates(candidates) {
+      console.log(`[pipeline] Step 2: scoring ${candidates.length} candidate(s) via Claude`);
+
+      const prompt = `You are the BIFL365 editorial AI.
+Score the following product candidates and return ONLY a JSON array. Do not wrap in markdown.
+
+PRODUCTS:
+${JSON.stringify(candidates, null, 2)}
+
+For each product include all original fields plus:
+{
+  "scores": {
+    "build_quality": 18,
+    "longevity": 19,
+    "value": 16,
+    "repairability": 15,
+    "india_availability": 18
+  },
+  "specs": {
+    "material": "Steel",
+    "warranty": "Lifetime",
+    "repairability_score": 8,
+    "made_in": "Japan",
+    "weight": "1.2 kg"
+  },
+  "award_type": "value_buy" | "forever_pick" | "hidden_gem" | "current_star" | null,
+  "summary": "100-200 word editorial summary",
+  "reddit_sentiment": "Short community sentiment summary",
+  "estimated_lifespan_years": 25,
+  "estimated_lifespan_multiplier": 5,
+  "week_of": "${weekOf}",
+  "is_featured": true | false
+}
+
+At least one product must have is_featured=true.`;
+
+      const raw = await callClaude(prompt);
+      const payload = parseJsonPayload(raw, 'Claude scoring response');
+      const productArray = extractArray(payload, ['products', 'items', 'results']);
+      if (!productArray) {
+        throw new Error('Claude scoring response did not contain an array');
+      }
+
+      if (productArray.length !== candidates.length) {
+        console.warn(
+          `[pipeline] Claude returned ${productArray.length} scored product(s) but expected ${candidates.length}. Some candidates may have been dropped.`
+        );
+      }
+
+      return finalizeProducts(productArray);
+    },
+
+    async generateContent(products) {
+      console.log(`[pipeline] Step 3: generating content via Claude`);
+
+      const prompt = `You are the BIFL365 content team.
+Generate weekly promo content for these products and return ONLY a JSON object with these exact keys:
+{
+  "youtube_script": "600-word script",
+  "instagram_slide_1": "Text",
+  "instagram_slide_2": "Text",
+  "instagram_slide_3": "Text",
+  "instagram_slide_4": "Text",
+  "instagram_slide_5": "Text",
+  "blog_post": "Markdown blog post"
+}
+
+PRODUCTS:
+${JSON.stringify(products, null, 2)}`;
+
+      const raw = await callClaude(prompt);
+      return normalizeContent(parseJsonPayload(raw, 'Claude content response'));
     }
   }
 };
@@ -1161,7 +1331,9 @@ async function updateLatestRun(status, details = {}) {
         status,
         products_found: details.products_found ?? undefined,
         products_approved: details.products_approved ?? undefined,
-        completed_at: new Date().toISOString()
+        completed_at: new Date().toISOString(),
+        ...(details.error_message != null ? { error_message: details.error_message } : {}),
+        ...(details.error_log != null ? { error_log: details.error_log } : {})
       })
       .eq('id', run.id);
   } catch (error) {
@@ -1184,6 +1356,9 @@ async function runPipelineOnce(importPath = null) {
   console.log(`[pipeline] Products processed: ${products.length}`);
   if (!upsertResult.skipped) {
     console.log(`[pipeline] Upserted: ${upsertResult.succeeded}/${upsertResult.total}`);
+    if (upsertResult.failed?.length) {
+      console.error('[pipeline] Upsert errors:', upsertResult.failed);
+    }
   }
   if (outputDir) {
     console.log(`[pipeline] Content written to: ${outputDir}`);
@@ -1214,7 +1389,10 @@ async function processImportDirectory() {
       failedCount += 1;
       console.error(`[pipeline] Failed while processing ${basename(file.path)}`);
       console.error(error.stack || error.message || error);
-      await updateLatestRun('failed');
+      await updateLatestRun('failed', {
+        error_message: error.message ?? String(error),
+        error_log: error.stack ?? error.message ?? String(error)
+      });
 
       if (runtime.archiveImports) {
         const failedPath = moveImportedFile(file.path, runtime.importFailedDir);
@@ -1244,7 +1422,10 @@ async function main() {
   } catch (error) {
     console.error('[pipeline] Failed');
     console.error(error.stack || error.message || error);
-    await updateLatestRun('failed');
+    await updateLatestRun('failed', {
+      error_message: error.message ?? String(error),
+      error_log: error.stack ?? error.message ?? String(error)
+    });
     process.exitCode = 1;
   }
 }

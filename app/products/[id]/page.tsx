@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { AwardBadge } from '@/components/AwardBadge';
 import { ScoreBar } from '@/components/ScoreBar';
 import { ProductImage } from '@/components/ProductImage';
+import { ShareButtons } from '@/components/ShareButtons';
 import { CATEGORY_LABELS } from '@/lib/constants';
 import type { Product } from '@/lib/types';
 
@@ -18,13 +19,14 @@ export async function generateMetadata(
 
   const { data } = await supabase
     .from('products')
-    .select('name, brand, category, summary')
+    .select('name, brand, category, summary, image_url, scores')
     .eq('id', id)
     .single();
 
-  const product = data as { name: string; brand: string; category: string; summary?: string | null } | null;
+  const product = data as { name: string; brand: string; category: string; summary?: string | null; image_url?: string | null; scores?: Record<string, number> | null } | null;
   if (!product) return { title: 'Product Not Found' };
   const cat = CATEGORY_LABELS[product.category] ?? product.category;
+  const totalScore = product.scores ? Object.values(product.scores).reduce((a, b) => a + b, 0) : null;
   return {
     title: `${product.name} by ${product.brand} — ${cat} BIFL Review`,
     description: product.summary?.slice(0, 155) ?? `Buy It For Life review of ${product.name} by ${product.brand}. Scored on build quality, longevity, repairability, value, and India availability.`,
@@ -32,6 +34,13 @@ export async function generateMetadata(
       title: `${product.name} — BIFL365`,
       description: product.summary?.slice(0, 155) ?? '',
       type: 'article',
+      images: product.image_url ? [{ url: product.image_url, width: 1200, height: 630 }] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${product.name} — BIFL Score: ${totalScore ?? '?'}/100`,
+      description: product.summary?.slice(0, 155) ?? '',
+      images: product.image_url ? [product.image_url] : undefined,
     },
   };
 }
@@ -178,10 +187,13 @@ export default async function ProductDetailPage(
             )}
 
             {/* Editorial analysis */}
-            {product.summary && (
+            {(product.description_draft || product.summary) && (
               <div className="border-l-4 border-orange pl-5 py-1">
                 <p className="text-[10px] font-sans font-bold uppercase tracking-widest text-charcoal-400 mb-2">Editorial Analysis</p>
-                <p className="text-sm font-sans text-ink leading-relaxed">{product.summary}</p>
+                {product.description_draft
+                  ? <div className="prose prose-sm max-w-none text-ink leading-relaxed [&>p]:mb-3 [&>p:last-child]:mb-0" dangerouslySetInnerHTML={{ __html: product.description_draft }} />
+                  : <p className="text-sm font-sans text-ink leading-relaxed">{product.summary}</p>
+                }
               </div>
             )}
 
@@ -195,6 +207,17 @@ export default async function ProductDetailPage(
                 <p className="text-sm font-sans text-charcoal-600 leading-relaxed italic">&quot;{product.reddit_sentiment}&quot;</p>
               </div>
             )}
+
+            {/* Share buttons */}
+            <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
+              <ShareButtons
+                url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/products/${product.id}`}
+                title={`${product.brand} ${product.name}`}
+                score={totalScore}
+                awardType={product.award_type}
+                redditSentiment={product.reddit_sentiment}
+              />
+            </div>
           </div>
 
           {/* Sidebar */}
@@ -244,7 +267,7 @@ export default async function ProductDetailPage(
                     {links.map((link, idx) => (
                     <a
                       key={`${link.store}-${idx}`}
-                      href={link.url}
+                      href={`/api/go?product_id=${product.id}&store=${encodeURIComponent(link.store)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={`block w-full text-center text-sm py-3 px-4 font-sans font-bold transition-all rounded-lg ${

@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { AwardBadge } from '@/components/AwardBadge';
 import { ScoreBar } from '@/components/ScoreBar';
 import { ProductImage } from '@/components/ProductImage';
+import { ShareButtons } from '@/components/ShareButtons';
 import type { Product } from '@/lib/types';
 
 export const metadata: Metadata = {
@@ -169,6 +170,17 @@ export default async function WeeklyPickPage() {
                 <p className="text-sm font-sans text-charcoal-600 leading-relaxed">{product.reddit_sentiment}</p>
               </div>
             )}
+
+            {/* Share buttons */}
+            <div className="border border-gray-200 rounded-xl p-6 bg-white shadow-sm">
+              <ShareButtons
+                url={`${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/weekly-pick`}
+                title={`${product.brand} ${product.name}`}
+                score={totalScore}
+                awardType={product.award_type}
+                redditSentiment={product.reddit_sentiment}
+              />
+            </div>
           </div>
 
           {/* ── SIDEBAR ── */}
@@ -222,7 +234,7 @@ export default async function WeeklyPickPage() {
                     {links.map((link, idx) => (
                     <a
                       key={`${link.store}-${idx}`}
-                      href={link.url}
+                      href={`/api/go?product_id=${product.id}&store=${encodeURIComponent(link.store)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={`block w-full text-center text-sm py-3 px-4 font-sans font-bold transition-all rounded-lg ${

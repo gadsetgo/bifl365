@@ -1,21 +1,27 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, createServerSupabaseClient } from '@/lib/supabase';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminDashboard() {
+  const serviceClient = createServerSupabaseClient();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
   const [
     { count: liveCount },
     { count: pendingCount },
     { count: imagesCount },
     { count: rejectedCount },
-    { data: pipelineRun }
+    { data: pipelineRun },
+    { count: clicksToday }
   ] = await Promise.all([
     supabase.from('products').select('*', { count: 'exact', head: true }).eq('pipeline_status', 'live'),
     supabase.from('products').select('*', { count: 'exact', head: true }).eq('pipeline_status', 'pending_review'),
     supabase.from('products').select('*', { count: 'exact', head: true }).eq('image_approved', false),
     supabase.from('products').select('*', { count: 'exact', head: true }).eq('pipeline_status', 'rejected'),
-    supabase.from('pipeline_runs').select('status, started_at, completed_at').order('started_at', { ascending: false }).limit(1).maybeSingle()
+    supabase.from('pipeline_runs').select('status, started_at, completed_at').order('started_at', { ascending: false }).limit(1).maybeSingle(),
+    serviceClient.from('affiliate_clicks').select('*', { count: 'exact', head: true }).gte('clicked_at', todayStart.toISOString())
   ]);
 
   type PipelineRun = { status: string; started_at: string; completed_at: string | null };
@@ -82,6 +88,17 @@ export default async function AdminDashboard() {
         <div className="bg-white p-6 border border-charcoal relative" style={{ boxShadow: '4px 4px 0px 0px #E8E6E1' }}>
           <div className="text-4xl pr-4 font-black text-charcoal-400 mb-1">{rejectedCount ?? 0}</div>
           <div className="text-xs font-sans uppercase tracking-widest text-charcoal-400">Rejected</div>
+        </div>
+
+        {/* Clicks Today */}
+        <div className="bg-white p-6 border border-charcoal relative col-span-2 lg:col-span-1" style={{ boxShadow: '4px 4px 0px 0px #E8E6E1' }}>
+          <div className="text-4xl pr-4 font-black text-ink mb-1">{clicksToday ?? 0}</div>
+          <div className="text-xs font-sans uppercase tracking-widest text-charcoal-400">Clicks Today</div>
+          <Link href="/admin/analytics" className="absolute top-4 right-4 text-charcoal-400 hover:text-orange">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </Link>
         </div>
       </div>
 

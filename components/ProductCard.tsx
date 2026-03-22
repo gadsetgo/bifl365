@@ -71,7 +71,7 @@ function AffiliateButtons({ product }: { product: Product }) {
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            window.open(link.url, '_blank', 'noopener,noreferrer');
+            window.open(`/api/go?product_id=${product.id}&store=${encodeURIComponent(link.store)}`, '_blank', 'noopener,noreferrer');
           }}
           className={`text-xs py-2 px-3 flex-1 text-center font-sans font-bold transition-colors ${
             idx === 0

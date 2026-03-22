@@ -1,11 +1,12 @@
 import { supabase } from '@/lib/supabase';
-import { revalidatePath } from 'next/cache';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import PromptCard from '@/components/PromptCard';
+import { ScheduleEditor } from './ScheduleEditor';
+import { PipelineTriggerForm } from './PipelineTriggerForm';
+import { AFFILIATE_TAG } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
-
-// The active Amazon India affiliate tag. Update here if it changes.
-const AFFILIATE_TAG = 'bifl365-21';
 
 type PipelineRun = {
   id: string;
@@ -14,46 +15,10 @@ type PipelineRun = {
   completed_at: string | null;
   products_found: number | null;
   products_approved: number | null;
+  error_message: string | null;
+  error_log: string | null;
 };
 
-async function triggerPipeline() {
-  'use server';
-
-  const { data, error } = await supabase
-    .from('pipeline_runs')
-    .insert([{ status: 'running' } as never])
-    .select()
-    .limit(1);
-
-  const run = (data?.[0] ?? null) as unknown as PipelineRun | null;
-
-  if (error || !run) return;
-
-  const owner = process.env.GITHUB_REPO_OWNER;
-  const repo = process.env.GITHUB_REPO_NAME;
-  const token = process.env.GITHUB_TOKEN;
-
-  if (owner && repo && token) {
-    try {
-      const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/weekly.yml/dispatches`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/vnd.github.v3+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ ref: 'main' })
-      });
-      if (!res.ok) throw new Error('Failed to dispatch');
-    } catch (e) {
-      console.error('Failed to trigger GH action', e);
-      await supabase.from('pipeline_runs').update({ status: 'failed' } as never).eq('id', run.id);
-    }
-  }
-
-  revalidatePath('/admin/pipeline');
-}
 
 const modes = [
   {
@@ -384,28 +349,23 @@ export default async function PipelinePage() {
   const runs = (data ?? []) as unknown as PipelineRun[];
   const isRunning = runs.length > 0 && runs[0].status === 'running';
 
+  const config = JSON.parse(readFileSync(join(process.cwd(), 'bifl365.config.json'), 'utf-8'));
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="font-serif font-black text-3xl text-ink">Pipeline Runner</h1>
-          <p className="text-sm font-sans text-charcoal-400 mt-2 max-w-2xl">
-            Three supported modes: online Gemini (UI trigger), local Ollama (terminal), and imported research bundles (drop JSON files into{' '}
-            <code className="bg-white border border-ghost px-1 py-0.5 text-xs">research-drop/</code>).
-            See <code className="bg-white border border-ghost px-1 py-0.5 text-xs">PIPELINE_GUIDEBOOK.md</code> for full details.
-          </p>
-        </div>
-        <form action={triggerPipeline}>
-          <button
-            disabled={Boolean(isRunning)}
-            className="h-12 px-6 bg-orange border border-charcoal text-paper font-sans uppercase text-xs tracking-widest font-bold hover:bg-orange-hover disabled:opacity-50 transition-colors shadow-[4px_4px_0px_0px_#121212] active:translate-y-0.5 active:shadow-none flex items-center gap-2 whitespace-nowrap"
-          >
-            {isRunning ? 'Pipeline Active...' : 'Trigger Online Pipeline'}
-          </button>
-        </form>
+      <div>
+        <h1 className="font-serif font-black text-3xl text-ink">Pipeline Runner</h1>
+        <p className="text-sm font-sans text-charcoal-400 mt-2 max-w-2xl">
+          Three supported modes: online AI (UI trigger), local Ollama (terminal), and imported research bundles (drop JSON files into{' '}
+          <code className="bg-white border border-ghost px-1 py-0.5 text-xs">research-drop/</code>).
+          See <code className="bg-white border border-ghost px-1 py-0.5 text-xs">PIPELINE_GUIDEBOOK.md</code> for full details.
+        </p>
       </div>
+
+      {/* Trigger form — provider + category subset selection */}
+      <PipelineTriggerForm disabled={isRunning} categories={config.categories} />
 
       {/* Mode Cards */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -449,6 +409,9 @@ export default async function PipelinePage() {
         </div>
       </details>
 
+      {/* Schedule & Config Editor */}
+      <ScheduleEditor initialConfig={config.pipeline} />
+
       {/* Pipeline Run History */}
       <div className="bg-white border border-charcoal shadow-card overflow-hidden">
         <div className="px-5 py-4 border-b border-ghost">
@@ -473,15 +436,33 @@ export default async function PipelinePage() {
               runs?.map((run) => (
                 <tr key={run.id} className="border-b border-ghost last:border-0 hover:bg-paper-dark transition-colors">
                   <td className="p-4">
-                    <span className={`px-2 py-0.5 text-[10px] uppercase tracking-widest font-bold border ${
-                      run.status === 'success'
-                        ? 'bg-orange-pale text-orange border-orange'
-                        : run.status === 'failed'
-                          ? 'bg-error-light text-error border-error'
-                          : 'bg-charcoal-200 text-charcoal border-charcoal'
-                    }`}>
-                      {run.status}
-                    </span>
+                    {run.status === 'failed' && (run.error_message || run.error_log) ? (
+                      <details className="group">
+                        <summary className="cursor-pointer list-none inline-flex items-center gap-2">
+                          <span className="px-2 py-0.5 text-[10px] uppercase tracking-widest font-bold border bg-error-light text-error border-error">
+                            failed
+                          </span>
+                          {run.error_message && (
+                            <span className="text-xs text-error truncate max-w-[200px]">{run.error_message}</span>
+                          )}
+                        </summary>
+                        {run.error_log && (
+                          <pre className="mt-2 p-3 bg-charcoal text-paper font-mono text-xs overflow-x-auto max-h-48 whitespace-pre-wrap">
+                            {run.error_log}
+                          </pre>
+                        )}
+                      </details>
+                    ) : (
+                      <span className={`px-2 py-0.5 text-[10px] uppercase tracking-widest font-bold border ${
+                        run.status === 'success'
+                          ? 'bg-orange-pale text-orange border-orange'
+                          : run.status === 'failed'
+                            ? 'bg-error-light text-error border-error'
+                            : 'bg-charcoal-200 text-charcoal border-charcoal'
+                      }`}>
+                        {run.status}
+                      </span>
+                    )}
                   </td>
                   <td className="p-4 text-charcoal-400">{new Date(run.started_at).toLocaleString()}</td>
                   <td className="p-4 text-charcoal-400">

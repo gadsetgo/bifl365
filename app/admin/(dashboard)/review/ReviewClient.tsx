@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import type { Product, AwardType } from '@/lib/types';
+import { AFFILIATE_TAG } from '@/lib/constants';
 
-// Affiliate tag — update here if it changes
-const AFFILIATE_TAG = 'bifl365-21';
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
 
 const TONES = [
   { id: 'reddit', label: 'Reddit-style' },
@@ -23,8 +25,9 @@ export function ReviewClient({ initialProducts }: { initialProducts: Product[] }
   const [draftDesc, setDraftDesc] = useState('');
   const [draftAward, setDraftAward] = useState<AwardType | 'none'>('none');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [activeTones, setActiveTones] = useState<string[]>(['reddit']);
+  const [activeTones, setActiveTones] = useState<string[]>(['reddit', 'data']);
   const [sourceLinks, setSourceLinks] = useState('');
+  const [descCopied, setDescCopied] = useState(false);
 
   // Reset draft state when active product changes
   useEffect(() => {
@@ -32,7 +35,7 @@ export function ReviewClient({ initialProducts }: { initialProducts: Product[] }
       setDraftName(activeProduct.name || '');
       setDraftDesc(activeProduct.description_draft || activeProduct.summary || '');
       setDraftAward(activeProduct.award_type || 'none');
-      setActiveTones(['reddit']);
+      setActiveTones(['reddit', 'data']);
       setSourceLinks('');
     }
   }, [activeProduct]);
@@ -54,7 +57,7 @@ export function ReviewClient({ initialProducts }: { initialProducts: Product[] }
     return {
       name: draftName,
       description_draft: draftDesc,
-      summary: draftDesc,
+      summary: stripHtml(draftDesc),
       award_type: draftAward === 'none' ? null : draftAward,
       amazon_tag: AFFILIATE_TAG
     };
@@ -101,10 +104,11 @@ export function ReviewClient({ initialProducts }: { initialProducts: Product[] }
         })
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       if (data?.newDescription) setDraftDesc(data.newDescription);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('AI Generation Failed');
+      alert(`AI Generation Failed: ${err.message ?? err}`);
     } finally {
       setIsGenerating(false);
     }
@@ -262,9 +266,22 @@ export function ReviewClient({ initialProducts }: { initialProducts: Product[] }
 
           {/* Draft Editor */}
           <div>
-            <label className="block text-2xs font-sans uppercase tracking-widest text-charcoal-400 mb-1 flex justify-between">
+            <label className="block text-2xs font-sans uppercase tracking-widest text-charcoal-400 mb-1 flex justify-between items-center">
               <span>Description Draft (HTML allowed)</span>
-              <span className="text-orange">{draftDesc.length} chars</span>
+              <span className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(draftDesc);
+                    setDescCopied(true);
+                    setTimeout(() => setDescCopied(false), 2000);
+                  }}
+                  className="text-[10px] font-bold uppercase tracking-widest text-charcoal-400 hover:text-ink transition-colors border border-charcoal-200 px-2 py-0.5"
+                >
+                  {descCopied ? '✓ Copied' : 'Copy'}
+                </button>
+                <span className="text-orange">{draftDesc.length} chars</span>
+              </span>
             </label>
             <textarea
               value={draftDesc}

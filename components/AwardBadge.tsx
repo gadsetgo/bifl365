@@ -40,6 +40,7 @@ const AWARD_CONFIG: Record<AwardType, { label: string; symbol: string; bg: strin
 
 export function AwardBadge({ type, size = 'md' }: AwardBadgeProps) {
   const cfg = AWARD_CONFIG[type];
+  if (!cfg) return null;
 
   const sizeClasses = {
     sm: 'text-2xs px-2 py-0.5 gap-1',
@@ -67,6 +68,7 @@ export function AwardBadge({ type, size = 'md' }: AwardBadgeProps) {
 // Large stamp version for the homepage showcase
 export function AwardStamp({ type }: { type: AwardType }) {
   const cfg = AWARD_CONFIG[type];
+  if (!cfg) return null;
   const descriptions: Record<AwardType, string> = {
     value_buy: 'Best price-to-durability ratio for Indian buyers',
     forever_pick: 'Absolute best build quality, regardless of price',

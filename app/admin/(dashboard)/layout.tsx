@@ -9,19 +9,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await auth();
   if (!session) redirect('/admin/login');
 
-  const [
-    { count: pendingReviewCount },
-    { count: imagesPendingCount }
-  ] = await Promise.all([
-    supabase.from('products').select('*', { count: 'exact', head: true }).eq('pipeline_status', 'pending_review'),
-    supabase.from('products').select('*', { count: 'exact', head: true }).eq('image_approved', false)
-  ]);
+  const { count: pendingReviewCount } = await supabase
+    .from('products')
+    .select('*', { count: 'exact', head: true })
+    .eq('pipeline_status', 'pending_review');
 
   return (
     <div className="min-h-screen bg-paper flex flex-col md:flex-row relative">
       <AdminSidebar
         pendingReviewCount={pendingReviewCount ?? 0}
-        imagesPendingCount={imagesPendingCount ?? 0}
       />
       <div className="flex-1 flex flex-col min-w-0 md:ml-64">
         {/* Top Header */}

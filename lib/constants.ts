@@ -12,6 +12,8 @@ export const VALID_CATEGORIES = config.categories.map(c => c.value) as unknown a
 export const CATEGORY_LABELS: Record<string, string> = 
   config.categories.reduce((acc, cat) => ({ ...acc, [cat.value]: cat.label }), {});
 
-export const CATEGORY_HOOKS: Record<CategoryType, string> = 
+export const CATEGORY_HOOKS: Record<CategoryType, string> =
   config.categories.reduce((acc, cat) => ({ ...acc, [cat.value]: cat.hook }), {}) as Record<CategoryType, string>;
+
+export const AFFILIATE_TAG: string = (config as Record<string, unknown>).affiliate_tag as string ?? 'bifl365-21';
 

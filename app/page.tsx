@@ -7,6 +7,8 @@ import { CategoryStrip } from '@/components/CategoryStrip';
 import { CATEGORIES } from '@/lib/constants';
 import type { Product } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'BIFL365 — Products Built to Last a Lifetime',
   description:

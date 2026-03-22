@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
+
+export const dynamic = 'force-dynamic';
 import { AwardBadge } from '@/components/AwardBadge';
 import { ScoreBar } from '@/components/ScoreBar';
 import { ProductImage } from '@/components/ProductImage';

@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { ProductCard } from '@/components/ProductCard';
 import { CategoryStrip } from '@/components/CategoryStrip';
+
+export const dynamic = 'force-dynamic';
 import type { CategoryType, Product } from '@/lib/types';
 import { VALID_CATEGORIES, CATEGORY_LABELS, CATEGORY_HOOKS } from '@/lib/constants';
 

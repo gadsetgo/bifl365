@@ -6,6 +6,8 @@ import { ProductImage } from '@/components/ProductImage';
 import { ShareButtons } from '@/components/ShareButtons';
 import type { Product } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "This Week's Pick",
   description: "BIFL365 featured product this week — full AI score breakdown, specs analysis, Reddit sentiment, and buy links.",

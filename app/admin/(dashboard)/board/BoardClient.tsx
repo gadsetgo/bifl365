@@ -63,8 +63,8 @@ export function BoardClient({
   const [activeTab, setActiveTab] = useState<StatusTab>(() => {
     const tab = searchParams.get('tab');
     if (tab === 'images') return 'needs_image';
-    if (tab === 'pending' || tab === 'live' || tab === 'rejected' || tab === 'needs_image' || tab === 'suggestions') return tab;
-    return 'all';
+    if (tab === 'all' || tab === 'pending' || tab === 'live' || tab === 'rejected' || tab === 'needs_image' || tab === 'suggestions') return tab;
+    return 'live';
   });
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [suggestions, setSuggestions] = useState<SuggestionRow[]>(initialSuggestions);

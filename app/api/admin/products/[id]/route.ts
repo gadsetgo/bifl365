@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { supabase } from '@/lib/supabase';
+import { deleteProductImages } from '@/lib/storage';
 
 const UPDATABLE_FIELDS = new Set([
   'name',
@@ -54,8 +55,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       .single();
 
     if (error) throw error;
+
+    // When rejecting a product, delete its images from Supabase Storage
+    if (body.pipeline_status === 'rejected' || body.status === 'rejected') {
+      await deleteProductImages(id);
+    }
+
     return NextResponse.json(data);
   } catch (error: any) {
     return new NextResponse(error.message, { status: 500 });
   }
 }
+

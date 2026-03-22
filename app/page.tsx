@@ -25,19 +25,32 @@ async function getFeaturedProduct(): Promise<Product | null> {
   return data ?? null;
 }
 
-async function getRecentProducts(): Promise<Product[]> {
+async function getForeverPicks(): Promise<Product[]> {
   const { data } = await supabase
     .from('products')
     .select('*')
-    .eq('is_featured', false)
+    .eq('award_type', 'forever_pick')
     .eq('status', 'published')
     .order('created_at', { ascending: false })
     .limit(6);
-  return data ?? [];
+  const picks = (data ?? []) as Product[];
+  // If not enough forever picks, fill with other published products
+  if (picks.length < 6) {
+    const ids = picks.map(p => p.id);
+    const { data: more } = await supabase
+      .from('products')
+      .select('*')
+      .eq('status', 'published')
+      .not('id', 'in', `(${ids.join(',')})`)
+      .order('created_at', { ascending: false })
+      .limit(6 - picks.length);
+    return [...picks, ...((more ?? []) as Product[])];
+  }
+  return picks;
 }
 
 export default async function HomePage() {
-  const [featured, recent] = await Promise.all([getFeaturedProduct(), getRecentProducts()]);
+  const [featured, recent] = await Promise.all([getFeaturedProduct(), getForeverPicks()]);
 
   return (
     <div className="bg-paper min-h-screen">
@@ -142,7 +155,7 @@ export default async function HomePage() {
         <section>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-baseline gap-4 mb-8">
-              <h2 className="font-serif font-bold text-2xl text-ink">Recent Awards</h2>
+              <h2 className="font-serif font-bold text-2xl text-ink">Forever Picks</h2>
               <div className="flex-1 h-px bg-charcoal" />
               <Link href="/products" className="section-label hover:text-orange transition-colors">
                 View all →

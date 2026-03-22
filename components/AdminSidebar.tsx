@@ -48,7 +48,6 @@ export function AdminSidebar({ pendingReviewCount = 0 }: SidebarProps) {
     { label: 'Dashboard', href: '/admin', icon: <DashboardIcon />, exact: true },
     { label: 'Products', href: '/admin/board', icon: <ProductsIcon />, badge: pendingReviewCount || undefined },
     { label: 'Pipeline', href: '/admin/pipeline', icon: <PipelineIcon /> },
-    { label: 'Analytics', href: '/admin/analytics', icon: <BarChartIcon /> },
   ];
 
   const isActive = (li: NavLink) =>

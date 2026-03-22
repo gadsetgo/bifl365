@@ -157,7 +157,7 @@ export default async function ProductDetailPage(
             {/* Image */}
             {product.image_url && (
               <div className="relative h-80 rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-card">
-                <ProductImage src={product.image_url} alt={product.name} />
+                <ProductImage src={product.image_url} alt={product.name} productId={product.id} />
               </div>
             )}
 

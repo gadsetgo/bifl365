@@ -2,12 +2,14 @@
   "affiliate_tag": "bifl365-21",
   "pipeline": {
     "auto_approve_mode": false,
-    "products_per_category": 3,
+    "products_per_category": 1,
     "run_day": "Sunday",
     "run_time": "22:30",
     "research_provider": "gemini",
     "scoring_provider": "gemini",
-    "content_provider": "gemini"
+    "content_provider": "gemini",
+    "verify_links": true,
+    "max_image_candidates": 10
   },
   "categories": [
     {

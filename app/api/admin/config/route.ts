@@ -16,9 +16,11 @@ const patchSchema = z.object({
   run_day: z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']).optional(),
   run_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
   auto_approve_mode: z.boolean().optional(),
+  verify_links: z.boolean().optional(),
   research_provider: z.enum(['gemini', 'claude', 'ollama']).optional(),
   scoring_provider: z.enum(['gemini', 'claude', 'ollama', 'none']).optional(),
   content_provider: z.enum(['gemini', 'claude', 'ollama', 'none']).optional(),
+  max_image_candidates: z.number().int().min(1).max(20).optional(),
 });
 
 export async function GET() {

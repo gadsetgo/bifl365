@@ -119,7 +119,7 @@ export function ProductCard({ product, featured = false }: ProductCardProps) {
       >
         {product.image_url && !imgError ? (
           <Image
-            src={product.image_url}
+            src={`/api/image/${product.id}`}
             alt={title}
             fill
             className="object-contain p-8 group-hover:scale-105 transition-transform duration-500"

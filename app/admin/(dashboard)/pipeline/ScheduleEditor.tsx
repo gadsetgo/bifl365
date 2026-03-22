@@ -7,6 +7,8 @@ interface PipelineConfig {
   run_time?: string;
   products_per_category?: number;
   auto_approve_mode?: boolean;
+  verify_links?: boolean;
+  max_image_candidates?: number;
   research_provider?: string;
   scoring_provider?: string;
   content_provider?: string;
@@ -189,18 +191,49 @@ export function ScheduleEditor({ initialConfig }: ScheduleEditorProps) {
           </div>
         </div>
 
-        {/* Auto-approve */}
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={config.auto_approve_mode ?? false}
-            onChange={(e) => setConfig((c) => ({ ...c, auto_approve_mode: e.target.checked }))}
-            className="w-4 h-4 border border-charcoal accent-orange"
-          />
-          <span className="text-sm font-sans text-ink">
-            Auto-approve mode — skip review queue and publish directly
-          </span>
-        </label>
+        {/* Publishing Safety */}
+        <div className="border border-ghost p-4 space-y-3">
+          <div className="text-[10px] font-sans uppercase tracking-widest text-charcoal-400 font-bold">Publishing Safety</div>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!(config.auto_approve_mode ?? false)}
+              onChange={(e) => setConfig((c) => ({ ...c, auto_approve_mode: !e.target.checked }))}
+              className="w-4 h-4 border border-charcoal accent-orange"
+            />
+            <span className="text-sm font-sans text-ink">
+              Require admin review before publishing
+            </span>
+          </label>
+          {(config.auto_approve_mode ?? false) && (
+            <div className="p-3 bg-orange-pale border border-orange text-sm font-sans text-charcoal">
+              <strong className="text-orange uppercase tracking-widest text-xs">Warning:</strong>{' '}
+              Products will publish directly without admin review.
+            </div>
+          )}
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.verify_links ?? true}
+              onChange={(e) => setConfig((c) => ({ ...c, verify_links: e.target.checked }))}
+              className="w-4 h-4 border border-charcoal accent-orange"
+            />
+            <span className="text-sm font-sans text-ink">
+              Verify affiliate links &amp; images via Gemini Search
+            </span>
+          </label>
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-sans text-ink whitespace-nowrap">Max image candidates</label>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={config.max_image_candidates ?? 10}
+              onChange={(e) => setConfig((c) => ({ ...c, max_image_candidates: Number(e.target.value) || 10 }))}
+              className="w-20 h-8 px-2 text-sm border border-charcoal focus:border-orange focus:outline-none"
+            />
+          </div>
+        </div>
 
         {/* Save */}
         <div className="flex items-center gap-4">

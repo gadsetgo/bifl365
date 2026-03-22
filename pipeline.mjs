@@ -17,6 +17,8 @@ const AFFILIATE_TAG = configData.affiliate_tag || 'bifl365-21';
 const VALID_CATEGORIES = new Set(categories.map((category) => category.value));
 const CATEGORY_NAMES = categories.map((category) => category.value).join('|');
 const AUTO_APPROVE = Boolean(pipeline.auto_approve_mode);
+const VERIFY_LINKS = Boolean(pipeline.verify_links ?? true);
+const MAX_IMAGE_CANDIDATES = Number(pipeline.max_image_candidates) || 10;
 const weekOf = new Date().toISOString().split('T')[0];
 
 const runtime = buildRuntimeConfig();
@@ -1341,9 +1343,92 @@ async function updateLatestRun(status, details = {}) {
   }
 }
 
+function buildVerifyPrompt(product) {
+  return `You are a product research assistant. Find REAL, VERIFIED purchase links and product images.
+
+Product: "${product.name}" by ${product.brand || 'unknown brand'}
+Category: ${product.category || ''}
+
+Tasks:
+1. Search Amazon India (amazon.in) for this exact product. Find the REAL ASIN (10-char code in /dp/ASIN URL).
+2. Search Flipkart for the real product page URL (not a search page).
+3. Find the manufacturer/brand official product page if available.
+4. Find up to ${MAX_IMAGE_CANDIDATES} REAL direct product image URLs. Best sources:
+   - Amazon CDN: https://m.media-amazon.com/images/I/XXXXX._AC_SL1500_.jpg (publicly downloadable)
+   - Manufacturer/brand website images (stable, rarely block downloads)
+   - DO NOT include Flipkart CDN images (rukminim2.flixcart.com — blocks automated downloads)
+
+Return ONLY valid JSON:
+{
+  "affiliate_links": [
+    { "store": "Amazon", "url": "https://www.amazon.in/dp/REAL_ASIN?tag=${AFFILIATE_TAG}", "is_affiliate": true },
+    { "store": "Flipkart", "url": "https://www.flipkart.com/product/p/REAL_PID", "is_affiliate": false }
+  ],
+  "image_url": "BEST_PRIMARY_IMAGE_URL",
+  "image_candidates": ["https://m.media-amazon.com/images/I/ID._AC_SL1500_.jpg"]
+}
+
+IMPORTANT: Only include URLs you actually found. Do NOT hallucinate ASINs/URLs.`;
+}
+
+async function verifyProductLinks(products) {
+  if (!VERIFY_LINKS) {
+    console.log('[pipeline] Link verification disabled, skipping');
+    return products;
+  }
+
+  if (runtime.researchProvider !== 'gemini' && runtime.scoringProvider !== 'gemini') {
+    console.log('[pipeline] Link verification requires Gemini (for search grounding), skipping');
+    return products;
+  }
+
+  console.log(`[pipeline] Verifying links for ${products.length} product(s) via Gemini Search`);
+
+  for (let i = 0; i < products.length; i++) {
+    const product = products[i];
+    console.log(`[pipeline]   verifying ${i + 1}/${products.length}: ${product.name}`);
+
+    try {
+      const raw = await callGemini(buildVerifyPrompt(product), { search: true });
+      const payload = parseJsonPayload(raw, `link verification for ${product.name}`);
+
+      // Update affiliate links if found
+      if (Array.isArray(payload.affiliate_links) && payload.affiliate_links.length > 0) {
+        const verified = sanitizeAffiliateLinks(payload.affiliate_links);
+        if (verified.length > 0) {
+          product.affiliate_links = verified;
+        }
+      }
+
+      // Update image candidates if found
+      const imageCandidates = [];
+      if (payload.image_url && typeof payload.image_url === 'string') {
+        imageCandidates.push(payload.image_url.trim());
+      }
+      if (Array.isArray(payload.image_candidates)) {
+        for (const url of payload.image_candidates) {
+          if (typeof url === 'string' && url.trim() && !imageCandidates.includes(url.trim())) {
+            imageCandidates.push(url.trim());
+          }
+        }
+      }
+      if (imageCandidates.length > 0) {
+        product.image_candidates = imageCandidates.slice(0, MAX_IMAGE_CANDIDATES);
+        product.image_url = imageCandidates[0];
+      }
+    } catch (error) {
+      console.warn(`[pipeline]   verification failed for ${product.name}: ${error.message}`);
+      // Continue with existing links — verification is best-effort
+    }
+  }
+
+  return products;
+}
+
 async function runPipelineOnce(importPath = null) {
   const inputBundle = await getCandidates(importPath);
   const products = await getProducts(inputBundle);
+  await verifyProductLinks(products);
   const upsertResult = await upsertProducts(products);
   const outputDir = await generateContent(products, inputBundle);
 

@@ -6,10 +6,14 @@ import Image from 'next/image';
 interface ProductImageProps {
   src: string;
   alt: string;
+  productId?: string;
 }
 
-export function ProductImage({ src, alt }: ProductImageProps) {
+export function ProductImage({ src, alt, productId }: ProductImageProps) {
   const [error, setError] = useState(false);
+
+  // Use proxy URL if productId is provided, with fallback to direct src
+  const imageSrc = productId ? `/api/image/${productId}` : src;
 
   if (error) {
     return (
@@ -21,7 +25,7 @@ export function ProductImage({ src, alt }: ProductImageProps) {
 
   return (
     <Image
-      src={src}
+      src={imageSrc}
       alt={alt}
       fill
       className="object-contain p-6"

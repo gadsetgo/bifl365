@@ -106,12 +106,22 @@ export function BoardClient({
   // Enriching state
   const [enriching, setEnriching] = useState<Set<string>>(new Set());
 
+  // Verify links state
+  const [verifying, setVerifying] = useState<Set<string>>(new Set());
+
   // Fix links state
   const [fixingLinks, setFixingLinks] = useState(false);
+
+  // Store image state
+  const [storingImage, setStoringImage] = useState<Set<string>>(new Set());
 
   // Image picker state
   const [imagePickerOpen, setImagePickerOpen] = useState<string | null>(null);
   const [customImageUrl, setCustomImageUrl] = useState('');
+
+  // Pagination
+  const [pageSize, setPageSize] = useState<number>(25);
+  const [currentPage, setCurrentPage] = useState(0);
 
   // Computed tab counts
   const counts = useMemo(() => {
@@ -151,6 +161,15 @@ export function BoardClient({
 
     return list;
   }, [products, activeTab, search]);
+
+  // Paginated products
+  const totalPages = pageSize === 0 ? 1 : Math.ceil(filteredProducts.length / pageSize);
+  const paginatedProducts = pageSize === 0
+    ? filteredProducts
+    : filteredProducts.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+
+  // Reset page when filter changes
+  useEffect(() => { setCurrentPage(0); }, [activeTab, search]);
 
   const isCol = (key: ColumnKey) => visibleColumns.has(key);
 
@@ -277,6 +296,50 @@ export function BoardClient({
     }
   }
 
+  async function verifySingle(id: string) {
+    setVerifying(prev => new Set(prev).add(id));
+    try {
+      const res = await fetch('/api/admin/verify-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [id] }),
+      });
+      const { results } = await res.json();
+      if (results?.[0]?.status === 'ok' && results[0].data) {
+        setProducts(prev => prev.map(p => p.id === id ? { ...p, ...results[0].data } : p));
+      }
+    } catch (err) {
+      console.error('Verify links failed', err);
+    } finally {
+      setVerifying(prev => { const n = new Set(prev); n.delete(id); return n; });
+    }
+  }
+
+  async function bulkVerify() {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    ids.forEach(id => setVerifying(prev => new Set(prev).add(id)));
+    try {
+      const res = await fetch('/api/admin/verify-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      const { results } = await res.json();
+      if (Array.isArray(results)) {
+        setProducts(prev => prev.map(p => {
+          const r = results.find((r: any) => r.id === p.id);
+          return r?.status === 'ok' && r.data ? { ...p, ...r.data } : p;
+        }));
+      }
+    } catch (err) {
+      console.error('Bulk verify failed', err);
+    } finally {
+      setVerifying(new Set());
+      setSelected(new Set());
+    }
+  }
+
   async function handleAddProduct() {
     if (!addName.trim()) return;
     setIsAdding(true);
@@ -315,6 +378,27 @@ export function BoardClient({
     setCustomImageUrl('');
   }
 
+  async function storeImage(productId: string, imageUrl: string) {
+    setStoringImage(prev => new Set(prev).add(productId));
+    try {
+      const res = await fetch('/api/admin/store-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId, imageUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setProducts(prev => prev.map(p =>
+        p.id === productId ? { ...p, image_url: data.storedUrl, image_approved: true } as Product : p
+      ));
+      setImagePickerOpen(null);
+    } catch (err: any) {
+      alert(`Store image failed: ${err.message ?? err}`);
+    } finally {
+      setStoringImage(prev => { const n = new Set(prev); n.delete(productId); return n; });
+    }
+  }
+
   async function fixAllLinks() {
     setFixingLinks(true);
     try {
@@ -332,7 +416,7 @@ export function BoardClient({
   const totalScore = (p: Product) =>
     p.scores ? Object.values(p.scores).reduce((a, b) => a + b, 0) : null;
 
-  const allSelected = filteredProducts.length > 0 && filteredProducts.every(p => selected.has(p.id));
+  const allSelected = paginatedProducts.length > 0 && paginatedProducts.every(p => selected.has(p.id));
 
   const tabs: { key: StatusTab; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: counts.all },
@@ -393,6 +477,13 @@ export function BoardClient({
                     className="px-4 py-1.5 bg-charcoal text-paper text-xs font-bold uppercase tracking-widest hover:bg-charcoal-700 transition-colors"
                   >
                     Enrich {selected.size}
+                  </button>
+                  <button
+                    onClick={bulkVerify}
+                    disabled={verifying.size > 0}
+                    className="px-4 py-1.5 bg-charcoal text-paper text-xs font-bold uppercase tracking-widest hover:bg-charcoal-700 disabled:opacity-50 transition-colors"
+                  >
+                    {verifying.size > 0 ? 'Verifying...' : `Verify Links ${selected.size}`}
                   </button>
                   <button
                     onClick={() => setSelected(new Set())}
@@ -512,17 +603,18 @@ export function BoardClient({
               <p className="text-sm font-sans text-charcoal-400">No products match the current filter.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto border border-charcoal">
-              <table className="w-full text-sm font-sans">
-                <thead className="bg-charcoal text-paper text-[10px] uppercase tracking-widest">
+            <>
+            <div className="overflow-auto max-h-[80vh] border border-charcoal relative">
+              <table className="w-full text-sm font-sans border-collapse">
+                <thead className="bg-charcoal text-paper text-[10px] uppercase tracking-widest sticky top-0 z-20">
                   <tr>
                     {isCol('checkbox') && (
-                      <th className="w-8 px-3 py-2.5 text-center">
+                      <th className="w-8 px-3 py-2.5 text-center sticky left-0 z-30 bg-charcoal">
                         <input
                           type="checkbox"
                           checked={allSelected}
                           onChange={e => {
-                            if (e.target.checked) setSelected(new Set(filteredProducts.map(p => p.id)));
+                            if (e.target.checked) setSelected(new Set(paginatedProducts.map(p => p.id)));
                             else setSelected(new Set());
                           }}
                           className="accent-orange"
@@ -542,17 +634,18 @@ export function BoardClient({
                     {isCol('specs') && <th className="px-3 py-2.5 text-left">Specs</th>}
                     {isCol('prices') && <th className="px-3 py-2.5 text-center">Prices</th>}
                     {isCol('lifespan') && <th className="px-3 py-2.5 text-center">Lifespan</th>}
-                    {isCol('actions') && <th className="px-3 py-2.5 text-right">Actions</th>}
+                    {isCol('actions') && <th className="px-3 py-2.5 text-right sticky right-0 z-30 bg-charcoal">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.map((product, i) => {
+                  {paginatedProducts.map((product, i) => {
                     const rowEdits = edits[product.id] ?? {};
                     const dirty = Object.keys(rowEdits).length > 0;
                     const score = totalScore(product);
                     const affiliateLinks = product.affiliate_links ?? [];
                     const hasSearchUrl = affiliateLinks.some(l => isSearchUrl(l.url));
                     const isEnriching = enriching.has(product.id);
+                    const isVerifying = verifying.has(product.id);
                     const candidates = product.image_candidates ?? [];
 
                     return (
@@ -562,7 +655,7 @@ export function BoardClient({
                         >
                           {/* Checkbox */}
                           {isCol('checkbox') && (
-                            <td className="px-3 py-2 text-center">
+                            <td className={`px-3 py-2 text-center sticky left-0 z-10 ${i % 2 === 0 ? 'bg-white' : 'bg-paper'}`}>
                               <input
                                 type="checkbox"
                                 checked={selected.has(product.id)}
@@ -736,7 +829,7 @@ export function BoardClient({
 
                           {/* Actions */}
                           {isCol('actions') && (
-                            <td className="px-3 py-2 text-right whitespace-nowrap">
+                            <td className={`px-3 py-2 text-right whitespace-nowrap sticky right-0 z-10 ${i % 2 === 0 ? 'bg-white' : 'bg-paper'}`}>
                               <div className="flex items-center justify-end gap-1">
                                 {dirty && (
                                   <button
@@ -754,6 +847,14 @@ export function BoardClient({
                                   title="AI Enrich"
                                 >
                                   {isEnriching ? '...' : '❖'}
+                                </button>
+                                <button
+                                  onClick={() => verifySingle(product.id)}
+                                  disabled={isVerifying}
+                                  className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest border border-charcoal-200 hover:border-blue-500 hover:text-blue-600 disabled:opacity-50 transition-colors"
+                                  title="Verify Links &amp; Images via Gemini"
+                                >
+                                  {isVerifying ? '...' : '⟳'}
                                 </button>
                                 <Link
                                   href={`/admin/products/${product.id}/edit`}
@@ -805,13 +906,13 @@ export function BoardClient({
                                     </button>
                                   ))}
                                 </div>
-                                <div className="flex gap-2 items-center max-w-md">
+                                <div className="flex gap-2 items-center flex-wrap max-w-lg">
                                   <input
                                     type="text"
                                     value={customImageUrl}
                                     onChange={e => setCustomImageUrl(e.target.value)}
                                     placeholder="Custom image URL..."
-                                    className="flex-1 h-8 px-2 text-xs border border-charcoal focus:border-orange focus:outline-none"
+                                    className="flex-1 min-w-[150px] h-8 px-2 text-xs border border-charcoal focus:border-orange focus:outline-none"
                                   />
                                   <button
                                     onClick={() => customImageUrl.trim() && pickImage(product.id, customImageUrl.trim())}
@@ -820,6 +921,16 @@ export function BoardClient({
                                   >
                                     Use Custom
                                   </button>
+                                  {product.image_url && (
+                                    <button
+                                      onClick={() => storeImage(product.id, product.image_url!)}
+                                      disabled={storingImage.has(product.id)}
+                                      className="h-8 px-3 bg-orange text-paper text-[10px] font-bold uppercase tracking-widest hover:bg-orange/90 disabled:opacity-50 transition-colors"
+                                      title="Download current image and store permanently"
+                                    >
+                                      {storingImage.has(product.id) ? 'Storing...' : '⬇ Store Current'}
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => { setImagePickerOpen(null); setCustomImageUrl(''); }}
                                     className="h-8 px-2 text-xs text-charcoal-400 hover:text-ink"
@@ -837,6 +948,45 @@ export function BoardClient({
                 </tbody>
               </table>
             </div>
+            {/* Pagination */}
+            <div className="flex items-center justify-between px-4 py-2 bg-white border border-t-0 border-charcoal text-xs font-sans text-charcoal-400">
+              <div className="flex items-center gap-2">
+                <span>Show</span>
+                {[25, 50, 0].map(size => (
+                  <button
+                    key={size}
+                    onClick={() => { setPageSize(size); setCurrentPage(0); }}
+                    className={`px-2 py-0.5 border transition-colors ${pageSize === size ? 'bg-charcoal text-paper border-charcoal' : 'border-charcoal-200 hover:border-charcoal'}`}
+                  >
+                    {size === 0 ? 'All' : size}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <span>{filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''}</span>
+                {pageSize > 0 && totalPages > 1 && (
+                  <>
+                    <span className="text-charcoal-200">|</span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                      disabled={currentPage === 0}
+                      className="px-2 py-0.5 border border-charcoal-200 hover:border-charcoal disabled:opacity-30 transition-colors"
+                    >
+                      ←
+                    </button>
+                    <span>{currentPage + 1} / {totalPages}</span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                      disabled={currentPage >= totalPages - 1}
+                      className="px-2 py-0.5 border border-charcoal-200 hover:border-charcoal disabled:opacity-30 transition-colors"
+                    >
+                      →
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            </>
           )}
         </div>
       )}

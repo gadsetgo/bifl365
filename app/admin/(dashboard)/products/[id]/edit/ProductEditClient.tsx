@@ -40,6 +40,8 @@ export function ProductEditClient({ product: initial }: { product: Product }) {
   const [activeTones, setActiveTones] = useState<string[]>(['reddit', 'data']);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnriching, setIsEnriching] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isStoringImage, setIsStoringImage] = useState(false);
   const [actionStatus, setActionStatus] = useState<string | null>(null);
 
   const dirtyCount = Object.keys(dirty).length;
@@ -171,6 +173,59 @@ export function ProductEditClient({ product: initial }: { product: Product }) {
     }
   }
 
+  async function handleVerify() {
+    setIsVerifying(true);
+    try {
+      const res = await fetch('/api/admin/verify-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [product.id] }),
+      });
+      const { results } = await res.json();
+      if (results?.[0]?.status === 'ok') {
+        const data = results[0].data;
+        Object.entries(data).forEach(([key, value]) => {
+          if (value !== null && value !== undefined) {
+            setProduct(prev => ({ ...prev, [key]: value }));
+            setDirty(prev => ({ ...prev, [key]: value }));
+          }
+        });
+      } else {
+        alert(`Verification failed: ${results?.[0]?.error ?? 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      alert(`Verification failed: ${err.message ?? err}`);
+    } finally {
+      setIsVerifying(false);
+    }
+  }
+
+  async function handleStoreImage() {
+    if (!product.image_url) return;
+    setIsStoringImage(true);
+    try {
+      const res = await fetch('/api/admin/store-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product.id, imageUrl: product.image_url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setProduct(prev => ({ ...prev, image_url: data.storedUrl, image_approved: true }));
+      setDirty(prev => {
+        const next = { ...prev };
+        delete (next as any).image_url;
+        delete (next as any).image_approved;
+        return next;
+      });
+      setActionStatus('Image stored permanently');
+    } catch (err: any) {
+      alert(`Store image failed: ${err.message ?? err}`);
+    } finally {
+      setIsStoringImage(false);
+    }
+  }
+
   function pickCandidate(url: string) {
     set('image_url', url);
     set('image_approved', true as any);
@@ -249,7 +304,18 @@ export function ProductEditClient({ product: initial }: { product: Product }) {
           {/* Image + candidates */}
           <div className="space-y-2">
             {product.image_url && (
-              <img src={product.image_url} alt={product.name} className="w-full max-h-64 object-contain border border-gray-200 bg-white" />
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={product.image_url} alt={product.name} className="w-full max-h-64 object-contain border border-gray-200 bg-white" />
+                <button
+                  onClick={handleStoreImage}
+                  disabled={isStoringImage}
+                  className="absolute top-2 right-2 px-2 py-1 text-[10px] font-bold uppercase tracking-widest bg-charcoal text-paper hover:bg-charcoal-700 disabled:opacity-50 transition-colors"
+                  title="Download and store image permanently in Supabase Storage"
+                >
+                  {isStoringImage ? 'Storing...' : '⬇ Store'}
+                </button>
+              </div>
             )}
             {/* Image candidates grid */}
             {candidates.length > 0 && (
@@ -398,6 +464,13 @@ export function ProductEditClient({ product: initial }: { product: Product }) {
                 className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-orange text-paper hover:bg-orange/90 disabled:opacity-50 transition-colors"
               >
                 {isEnriching ? 'Enriching...' : '❖ Full Enrich'}
+              </button>
+              <button
+                onClick={handleVerify}
+                disabled={isVerifying}
+                className="px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-charcoal text-paper hover:bg-charcoal-700 disabled:opacity-50 transition-colors"
+              >
+                {isVerifying ? 'Verifying...' : '⟳ Verify Links'}
               </button>
             </div>
 

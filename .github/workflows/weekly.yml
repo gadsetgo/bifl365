@@ -5,6 +5,23 @@ on:
     # Run every 6 hours (bypassing daily Gemini API quota limits with smaller batches)
     - cron: '0 */6 * * *'
   workflow_dispatch:
+    inputs:
+      PIPELINE_RESEARCH_PROVIDER:
+        description: 'Research provider (gemini | claude | ollama)'
+        required: false
+        default: 'gemini'
+      PIPELINE_SCORING_PROVIDER:
+        description: 'Scoring provider (gemini | claude | ollama | none)'
+        required: false
+        default: 'gemini'
+      PIPELINE_CONTENT_PROVIDER:
+        description: 'Content provider (gemini | claude | ollama | none)'
+        required: false
+        default: 'gemini'
+      PIPELINE_CATEGORY_FILTER:
+        description: 'Comma-separated category subset (leave empty for all)'
+        required: false
+        default: ''
 
 jobs:
   run-pipeline:
@@ -22,7 +39,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run weekly pipeline
+      - name: Run pipeline
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -30,7 +47,13 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
-        run: node weekly-pipeline.mjs
+          NODE_ENV: production
+          PIPELINE_RESEARCH_SOURCE: online
+          PIPELINE_RESEARCH_PROVIDER: ${{ inputs.PIPELINE_RESEARCH_PROVIDER || 'gemini' }}
+          PIPELINE_SCORING_PROVIDER: ${{ inputs.PIPELINE_SCORING_PROVIDER || 'gemini' }}
+          PIPELINE_CONTENT_PROVIDER: ${{ inputs.PIPELINE_CONTENT_PROVIDER || 'gemini' }}
+          PIPELINE_CATEGORY_FILTER: ${{ inputs.PIPELINE_CATEGORY_FILTER || '' }}
+        run: node pipeline.mjs
 
       - name: Upload output artifacts
         uses: actions/upload-artifact@v4

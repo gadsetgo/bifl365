@@ -5,6 +5,7 @@ import { join } from 'path';
 import { auth } from '@/auth';
 import { createClient } from '@supabase/supabase-js';
 import type { Product, AffiliateLink } from '@/lib/types';
+import { validateAffiliateUrl } from '@/lib/link-validator';
 import {
   downloadAndValidateImage,
   uploadImageToStorage,
@@ -84,7 +85,10 @@ function sanitizeLinks(links: any[], tag: string): AffiliateLink[] {
   if (!Array.isArray(links)) return [];
   return links
     .filter((l: any) => l?.url && typeof l.url === 'string')
-    .filter((l: any) => !l.url.includes('/s?k=') && !l.url.includes('/search?q='))
+    .filter((l: any) => {
+      const validation = validateAffiliateUrl(l.url.trim(), String(l.store || ''));
+      return validation.status !== 'broken';
+    })
     .map((l: any) => {
       const result: AffiliateLink = {
         store: String(l.store || 'Unknown').trim(),

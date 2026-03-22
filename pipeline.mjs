@@ -341,11 +341,87 @@ function normalizeAffiliateLinks(raw) {
   return [];
 }
 
+// ── Dedup utilities ──
+
+const FILLER_WORDS = new Set([
+  'watch', 'digital', 'analog', 'analogue', 'classic', 'premium', 'edition',
+  'pro', 'plus', 'ultra', 'lite', 'mini', 'max', 'new', 'latest', 'original',
+  'genuine', 'authentic', 'official', 'with', 'for', 'and', 'the', 'a', 'an',
+  'in', 'on', 'of', 'by', 'from', 'to', 'set', 'kit', 'pack', 'piece',
+  'series', 'collection', 'range', 'line', 'model', 'type', 'style', 'version',
+  'men', 'women', 'unisex', 'adult', 'kids', 'boy', 'girl',
+  'black', 'white', 'silver', 'gold', 'blue', 'red', 'green', 'grey', 'gray',
+  'stainless', 'steel', 'leather', 'rubber', 'silicone', 'nylon', 'canvas',
+  'water', 'resistant', 'proof', 'waterproof',
+  'indian', 'india', 'imported',
+]);
+
+const MODEL_PATTERN = /\b([A-Z]{1,5}[-.]?[0-9]{1,6}[A-Z0-9-.]*)\b/gi;
+
+function extractCanonicalKey(name, brand) {
+  const combined = `${brand} ${name}`.toLowerCase();
+  const models = combined.match(MODEL_PATTERN) ?? [];
+  const modelSet = new Set(models.map(m => m.toLowerCase()));
+
+  const words = combined.replace(/[^\w\s-]/g, ' ').split(/\s+/).filter(w => w.length > 0 && !FILLER_WORDS.has(w));
+  const seen = new Set();
+  const unique = [];
+  for (const w of words) { if (!seen.has(w)) { seen.add(w); unique.push(w); } }
+  const key = unique.join(' ').trim();
+
+  if (modelSet.size > 0) {
+    const brandLower = brand.toLowerCase().trim();
+    const nameParts = name.toLowerCase().replace(/[^\w\s-]/g, ' ').split(/\s+/);
+    const subBrands = nameParts.filter(w => !FILLER_WORDS.has(w) && !modelSet.has(w) && w.includes('-'));
+    return [brandLower, ...subBrands, ...[...modelSet]].filter(Boolean).join(' ') || key;
+  }
+  return key;
+}
+
+async function aiDedupCheck(newName, existingName, provider) {
+  const prompt = `Are these two product listings the SAME physical product? Answer ONLY "yes" or "no".
+Product A: "${newName}"
+Product B: "${existingName}"`;
+
+  try {
+    let response;
+    if (provider === 'gemini') response = await callGemini(prompt);
+    else if (provider === 'claude') response = await callClaude(prompt);
+    else if (provider === 'ollama') response = await callOllama(prompt);
+    else return false;
+
+    return response.trim().toLowerCase().startsWith('yes');
+  } catch (err) {
+    console.warn(`[pipeline] AI dedup check failed: ${err.message}`);
+    return false;
+  }
+}
+
+// ── Link validation ──
+
+function isValidProductUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (host.includes('amazon.in') || host.includes('amazon.com')) {
+      return Boolean(parsed.pathname.match(/\/(dp|gp\/product)\/[A-Z0-9]{10}/i));
+    }
+    if (host.includes('flipkart.com')) {
+      return parsed.pathname.includes('/p/');
+    }
+    return parsed.pathname.length > 1;
+  } catch {
+    return false;
+  }
+}
+
 function sanitizeAffiliateLinks(links) {
   return links
     .filter((link) => {
       // Drop search URLs
       if (link.url.includes('/s?k=') || link.url.includes('/search?q=')) return false;
+      // Drop links that don't match product page patterns
+      if (!isValidProductUrl(link.url)) return false;
       return true;
     })
     .map((link) => {
@@ -1256,39 +1332,69 @@ async function upsertProducts(products) {
     return response.data;
   }
 
-  console.log('[pipeline] Step 4: upserting directly to Supabase');
+  console.log('[pipeline] Step 4: upserting directly to Supabase (with fuzzy dedup)');
   const results = await Promise.allSettled(
     products.map(async (product) => {
-      // Check for existing product by name (case-insensitive)
-      const { data: existing } = await supabase
+      // 1. Exact case-insensitive match
+      const { data: exactMatch } = await supabase
         .from('products')
         .select('id, name')
         .ilike('name', product.name)
         .limit(1)
         .maybeSingle();
 
-      if (existing) {
-        // Update existing product
-        const { data, error } = await supabase
-          .from('products')
-          .update(product)
-          .eq('id', existing.id)
-          .select('id, name')
-          .single();
+      if (exactMatch) {
+        const { data, error } = await supabase.from('products').update(product).eq('id', exactMatch.id).select('id, name').single();
         if (error) throw error;
-        console.log(`[pipeline] Updated existing: ${existing.name}`);
-        return data;
-      } else {
-        // Insert new product
-        const { data, error } = await supabase
-          .from('products')
-          .insert(product)
-          .select('id, name')
-          .single();
-        if (error) throw error;
-        console.log(`[pipeline] Inserted new: ${product.name}`);
+        console.log(`[pipeline] Updated exact match: ${exactMatch.name}`);
         return data;
       }
+
+      // 2. Fuzzy match via pg_trgm
+      const { data: similar } = await supabase.rpc('find_similar_products', {
+        target_name: product.name,
+        similarity_threshold: 0.4,
+        max_results: 5,
+      });
+
+      const newKey = extractCanonicalKey(product.name, product.brand);
+      const matches = (similar ?? []);
+
+      // 3. Canonical key match → auto-merge
+      const keyMatch = matches.find(s => extractCanonicalKey(s.name, s.brand) === newKey);
+      if (keyMatch) {
+        const { data, error } = await supabase.from('products').update(product).eq('id', keyMatch.id).select('id, name').single();
+        if (error) throw error;
+        console.log(`[pipeline] Merged (canonical key): "${product.name}" → "${keyMatch.name}" (sim: ${keyMatch.similarity.toFixed(2)})`);
+        return data;
+      }
+
+      // 4. Ambiguous zone (0.5–0.7): AI confirmation
+      const ambiguous = matches.filter(s => s.similarity >= 0.5 && s.similarity <= 0.7);
+      for (const candidate of ambiguous) {
+        const aiProvider = runtime.scoringProvider !== 'none' ? runtime.scoringProvider : runtime.researchProvider;
+        const isSame = await aiDedupCheck(product.name, candidate.name, aiProvider);
+        if (isSame) {
+          const { data, error } = await supabase.from('products').update(product).eq('id', candidate.id).select('id, name').single();
+          if (error) throw error;
+          console.log(`[pipeline] Merged (AI confirmed): "${product.name}" → "${candidate.name}" (sim: ${candidate.similarity.toFixed(2)})`);
+          return data;
+        }
+      }
+
+      // 5. High similarity (>0.7) but different key → flag for review
+      const highSim = matches.find(s => s.similarity > 0.7);
+      if (highSim) {
+        product.admin_notes = `Possible duplicate of: ${highSim.name} (similarity: ${highSim.similarity.toFixed(2)})`;
+        product.pipeline_status = 'pending_review';
+        console.log(`[pipeline] Flagged possible dupe: "${product.name}" ~ "${highSim.name}" (sim: ${highSim.similarity.toFixed(2)})`);
+      }
+
+      // 6. Insert as new
+      const { data, error } = await supabase.from('products').insert(product).select('id, name').single();
+      if (error) throw error;
+      console.log(`[pipeline] Inserted new: ${product.name}`);
+      return data;
     })
   );
 

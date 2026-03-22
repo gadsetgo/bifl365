@@ -115,6 +115,14 @@ export function BoardClient({
   // Store image state
   const [storingImage, setStoringImage] = useState<Set<string>>(new Set());
 
+  // Dedup + audit state
+  const [dupClusters, setDupClusters] = useState<any[] | null>(null);
+  const [findingDupes, setFindingDupes] = useState(false);
+  const [mergingDupe, setMergingDupe] = useState<string | null>(null);
+  const [auditResults, setAuditResults] = useState<any | null>(null);
+  const [auditing, setAuditing] = useState(false);
+  const [fixingAudit, setFixingAudit] = useState(false);
+
   // Image picker state
   const [imagePickerOpen, setImagePickerOpen] = useState<string | null>(null);
   const [customImageUrl, setCustomImageUrl] = useState('');
@@ -427,6 +435,72 @@ export function BoardClient({
     }
   }
 
+  async function findDuplicates() {
+    setFindingDupes(true);
+    try {
+      const res = await fetch('/api/admin/products/duplicates');
+      const data = await res.json();
+      setDupClusters(data.clusters ?? []);
+    } catch (err) {
+      console.error('Find duplicates failed', err);
+    } finally {
+      setFindingDupes(false);
+    }
+  }
+
+  async function mergeDuplicate(keepId: string, removeIds: string[]) {
+    setMergingDupe(keepId);
+    try {
+      const res = await fetch('/api/admin/products/duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keep_id: keepId, remove_ids: removeIds }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // Remove merged products from local state
+      const removedSet = new Set(removeIds);
+      setProducts(prev => prev.filter(p => !removedSet.has(p.id)));
+      setDupClusters(prev => prev?.filter(c => !c.products.some((p: any) => p.id === keepId)) ?? null);
+    } catch (err) {
+      console.error('Merge failed', err);
+    } finally {
+      setMergingDupe(null);
+    }
+  }
+
+  async function auditLinks() {
+    setAuditing(true);
+    try {
+      const res = await fetch('/api/admin/products/audit-links');
+      const data = await res.json();
+      setAuditResults(data);
+    } catch (err) {
+      console.error('Audit failed', err);
+    } finally {
+      setAuditing(false);
+    }
+  }
+
+  async function fixAuditedLinks(ids: string[]) {
+    setFixingAudit(true);
+    try {
+      const res = await fetch('/api/admin/products/audit-links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      alert(`Fixed ${data.total} product(s): ${data.results.map((r: any) => `${r.name}: ${r.status}`).join(', ')}`);
+      setAuditResults(null);
+      window.location.reload();
+    } catch (err) {
+      console.error('Fix audit failed', err);
+    } finally {
+      setFixingAudit(false);
+    }
+  }
+
   const totalScore = (p: Product) =>
     p.scores ? Object.values(p.scores).reduce((a, b) => a + b, 0) : null;
 
@@ -552,6 +626,22 @@ export function BoardClient({
                 {fixingLinks ? '...' : 'Fix Links'}
               </button>
               <button
+                onClick={auditLinks}
+                disabled={auditing}
+                className="h-9 px-3 border border-orange text-orange text-xs font-bold uppercase tracking-widest hover:bg-orange hover:text-paper disabled:opacity-50 transition-colors"
+                title="Audit all links for broken URLs"
+              >
+                {auditing ? '...' : 'Audit Links'}
+              </button>
+              <button
+                onClick={findDuplicates}
+                disabled={findingDupes}
+                className="h-9 px-3 border border-orange text-orange text-xs font-bold uppercase tracking-widest hover:bg-orange hover:text-paper disabled:opacity-50 transition-colors"
+                title="Find duplicate products"
+              >
+                {findingDupes ? '...' : 'Find Dupes'}
+              </button>
+              <button
                 onClick={() => setShowAddForm(v => !v)}
                 className="h-9 px-4 bg-charcoal text-paper text-xs font-bold uppercase tracking-widest hover:bg-charcoal-700 transition-colors"
               >
@@ -607,6 +697,77 @@ export function BoardClient({
                 >
                   ✕
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Duplicate clusters panel */}
+          {dupClusters !== null && (
+            <div className="bg-white border border-orange p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-widest">
+                  {dupClusters.length === 0 ? 'No duplicates found' : `${dupClusters.length} duplicate cluster(s)`}
+                </h3>
+                <button onClick={() => setDupClusters(null)} className="text-xs text-charcoal-400 hover:text-ink">Close</button>
+              </div>
+              {dupClusters.map((cluster, ci) => (
+                <div key={ci} className="border border-charcoal-200 p-3 space-y-2">
+                  <div className="text-2xs text-charcoal-400">
+                    Key: <span className="font-mono">{cluster.canonical_key}</span> · Similarity: {(cluster.similarity * 100).toFixed(0)}%
+                  </div>
+                  {cluster.products.map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between gap-2 text-xs">
+                      <span className={`flex-1 ${p.pipeline_status === 'live' ? 'font-bold' : 'text-charcoal-400'}`}>
+                        {p.name} <span className="text-2xs text-charcoal-300">({p.pipeline_status ?? p.status})</span>
+                      </span>
+                      <button
+                        onClick={() => {
+                          const removeIds = cluster.products.filter((x: any) => x.id !== p.id).map((x: any) => x.id);
+                          mergeDuplicate(p.id, removeIds);
+                        }}
+                        disabled={mergingDupe === p.id}
+                        className="px-2 py-1 text-[10px] font-bold uppercase tracking-widest bg-orange text-paper hover:bg-orange/90 disabled:opacity-50"
+                      >
+                        {mergingDupe === p.id ? '...' : 'Keep This'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Audit links panel */}
+          {auditResults !== null && (
+            <div className="bg-white border border-orange p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold uppercase tracking-widest">
+                  Link Audit: {auditResults.products_with_issues} product(s) with issues · {auditResults.total_broken} broken · {auditResults.total_suspicious} suspicious
+                </h3>
+                <div className="flex gap-2">
+                  {auditResults.issues?.length > 0 && (
+                    <button
+                      onClick={() => fixAuditedLinks(auditResults.issues.map((i: any) => i.id))}
+                      disabled={fixingAudit}
+                      className="px-3 py-1 text-xs font-bold uppercase tracking-widest bg-orange text-paper hover:bg-orange/90 disabled:opacity-50"
+                    >
+                      {fixingAudit ? 'Fixing...' : 'Fix All'}
+                    </button>
+                  )}
+                  <button onClick={() => setAuditResults(null)} className="text-xs text-charcoal-400 hover:text-ink">Close</button>
+                </div>
+              </div>
+              <div className="max-h-60 overflow-y-auto space-y-2">
+                {(auditResults.issues ?? []).map((issue: any) => (
+                  <div key={issue.id} className="border border-charcoal-200 p-2 text-xs">
+                    <div className="font-bold">{issue.name}</div>
+                    {issue.links.map((link: any, li: number) => (
+                      <div key={li} className={`ml-2 ${link.status === 'broken' ? 'text-red-600' : link.status === 'suspicious' ? 'text-amber-600' : 'text-green-600'}`}>
+                        {link.status === 'broken' ? '✕' : link.status === 'suspicious' ? '⚠' : '✓'} {link.store}: {link.reason || 'Valid'}
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
           )}

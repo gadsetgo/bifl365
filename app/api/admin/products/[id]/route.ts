@@ -26,6 +26,7 @@ const UPDATABLE_FIELDS = new Set([
   'estimated_lifespan_years',
   'estimated_lifespan_multiplier',
   'is_featured',
+  'featured_until',
   'week_of',
 ]);
 

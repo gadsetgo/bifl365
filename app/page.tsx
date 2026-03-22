@@ -14,6 +14,19 @@ export const metadata: Metadata = {
 };
 
 async function getFeaturedProduct(): Promise<Product | null> {
+  // Check for admin override first (featured_until in the future)
+  const now = new Date().toISOString();
+  const { data: override } = await supabase
+    .from('products')
+    .select('*')
+    .gt('featured_until', now)
+    .eq('status', 'published')
+    .order('featured_until', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (override) return override as Product;
+
+  // Fallback to regular is_featured
   const { data } = await supabase
     .from('products')
     .select('*')
@@ -21,8 +34,8 @@ async function getFeaturedProduct(): Promise<Product | null> {
     .eq('status', 'published')
     .order('week_of', { ascending: false })
     .limit(1)
-    .single();
-  return data ?? null;
+    .maybeSingle();
+  return (data as unknown as Product) ?? null;
 }
 
 async function getForeverPicks(): Promise<Product[]> {
@@ -54,6 +67,15 @@ export default async function HomePage() {
 
   return (
     <div className="bg-paper min-h-screen">
+      {/* ── MANIFESTO STRIP ── */}
+      <section className="border-b border-charcoal bg-orange-pale">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+          <p className="font-serif font-bold text-lg md:text-xl text-ink text-center">
+            &quot;The best purchase you ever make is the one you never have to make again.&quot;
+          </p>
+        </div>
+      </section>
+
       {/* ── HERO ── */}
       <section className="border-b border-charcoal bg-charcoal text-paper">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
@@ -170,19 +192,6 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* ── MANIFESTO STRIP ── */}
-      <section className="border-t border-charcoal bg-orange-pale">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="font-serif font-bold text-xl text-ink max-w-lg">
-              &quot;The best purchase you ever make is the one you never have to make again.&quot;
-            </p>
-            <Link href="/products" className="btn-primary shrink-0">
-              See All BIFL Products ↗
-            </Link>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

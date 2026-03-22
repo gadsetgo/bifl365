@@ -43,6 +43,7 @@ export interface Product {
   reddit_sentiment: string | null;
   week_of: string | null;
   is_featured: boolean;
+  featured_until?: string | null;
   status: 'draft' | 'published';
   created_at: string;
   image_candidates?: string[];

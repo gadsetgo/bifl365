@@ -532,6 +532,34 @@ export function ProductEditClient({ product: initial }: { product: Product }) {
               </select>
             </div>
 
+            {/* Featured Override */}
+            <div>
+              <label className="block text-2xs font-sans uppercase tracking-widest text-charcoal-400 mb-1">Feature Until (override)</label>
+              <div className="flex gap-2">
+                <input
+                  type="datetime-local"
+                  value={product.featured_until ? new Date(product.featured_until).toISOString().slice(0, 16) : ''}
+                  onChange={e => set('featured_until', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                  className="flex-1 h-9 px-2 text-sm border border-charcoal focus:border-orange focus:outline-none"
+                />
+                {product.featured_until && (
+                  <button
+                    type="button"
+                    onClick={() => set('featured_until', null)}
+                    className="px-2 h-9 text-xs border border-charcoal hover:bg-charcoal hover:text-paper transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              {product.featured_until && new Date(product.featured_until) > new Date() && (
+                <p className="text-2xs text-orange mt-1 font-bold">Active override — this product is featured on homepage</p>
+              )}
+              {product.featured_until && new Date(product.featured_until) <= new Date() && (
+                <p className="text-2xs text-charcoal-400 mt-1">Expired — override no longer active</p>
+              )}
+            </div>
+
             {/* Prices */}
             <div className="grid grid-cols-2 gap-3">
               <div>

@@ -366,6 +366,20 @@ export function BoardClient({
     }
   }
 
+  async function toggleFeature(id: string) {
+    const product = products.find(p => p.id === id);
+    const isActive = product?.featured_until && new Date(product.featured_until) > new Date();
+    const updates = isActive
+      ? { featured_until: null }
+      : { featured_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() };
+    await fetch(`/api/admin/products/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } as Product : p));
+  }
+
   async function pickImage(productId: string, imageUrl: string) {
     const updates = { image_url: imageUrl, image_approved: true };
     await fetch(`/api/admin/products/${productId}`, {
@@ -855,6 +869,19 @@ export function BoardClient({
                                   title="Verify Links &amp; Images via Gemini"
                                 >
                                   {isVerifying ? '...' : '⟳'}
+                                </button>
+                                <button
+                                  onClick={() => toggleFeature(product.id)}
+                                  className={`px-2 py-1 text-[10px] font-bold uppercase tracking-widest border transition-colors ${
+                                    product.featured_until && new Date(product.featured_until) > new Date()
+                                      ? 'border-orange bg-orange text-paper hover:bg-orange/80'
+                                      : 'border-charcoal-200 hover:border-orange hover:text-orange'
+                                  }`}
+                                  title={product.featured_until && new Date(product.featured_until) > new Date()
+                                    ? `Featured until ${new Date(product.featured_until).toLocaleDateString()}`
+                                    : 'Feature for 7 days'}
+                                >
+                                  ★
                                 </button>
                                 <Link
                                   href={`/admin/products/${product.id}/edit`}

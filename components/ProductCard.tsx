@@ -63,30 +63,38 @@ function AffiliateButtons({ product }: { product: Product }) {
 
   return (
     <div className="flex gap-2 flex-wrap">
-      {links.map((link, idx) => (
-        <button
-          key={`${link.store}-${idx}`}
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (link.isSearch) {
-              window.open(link.url, '_blank', 'noopener,noreferrer');
-            } else {
-              window.open(`/api/go?product_id=${product.id}&store=${encodeURIComponent(link.store)}`, '_blank', 'noopener,noreferrer');
-            }
-          }}
-          className={`text-xs py-2 px-3 flex-1 text-center font-sans font-bold transition-colors ${
-            idx === 0 && !link.isSearch
-              ? 'bg-orange text-paper hover:bg-orange/90'
-              : link.isSearch
-                ? 'border border-dashed border-charcoal-300 text-charcoal-500 hover:border-charcoal hover:text-ink'
-                : 'border border-charcoal text-ink hover:bg-charcoal hover:text-paper'
-          }`}
-          style={{ borderRadius: '2px' }}
-        >
-          {link.isSearch ? `Search ${link.store}` : `${link.store} ↗`}
-        </button>
-      ))}
+      {links.map((link, idx) => {
+        const isFirstDirect = idx === 0 && link.linkType !== 'search';
+        const label = link.linkType === 'search'
+          ? `Search ${link.store}`
+          : link.linkType === 'brand'
+            ? `${link.store} ↗`
+            : `${link.store} ↗`;
+        const url = link.linkType === 'affiliate'
+          ? `/api/go?product_id=${product.id}&store=${encodeURIComponent(link.store)}`
+          : link.url;
+
+        return (
+          <button
+            key={`${link.store}-${idx}`}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(url, '_blank', 'noopener,noreferrer');
+            }}
+            className={`text-xs py-2 px-3 flex-1 text-center font-sans font-bold transition-colors ${
+              isFirstDirect
+                ? 'bg-orange text-paper hover:bg-orange/90'
+                : link.linkType === 'search'
+                  ? 'border border-dashed border-charcoal-300 text-charcoal-500 hover:border-charcoal hover:text-ink'
+                  : 'border border-charcoal text-ink hover:bg-charcoal hover:text-paper'
+            }`}
+            style={{ borderRadius: '2px' }}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -407,11 +407,26 @@ function isValidProductUrl(url) {
       return Boolean(parsed.pathname.match(/\/(dp|gp\/product)\/[A-Z0-9]{10}/i));
     }
     if (host.includes('flipkart.com')) {
+      if (parsed.pathname.includes('/product-reviews/')) return false;
       return parsed.pathname.includes('/p/');
     }
     return parsed.pathname.length > 1;
   } catch {
     return false;
+  }
+}
+
+const PIPELINE_AFFILIATE_HOSTS = new Set([
+  'amazon.in', 'www.amazon.in', 'amazon.com', 'www.amazon.com',
+  'flipkart.com', 'www.flipkart.com', 'meesho.com', 'www.meesho.com',
+]);
+
+function detectLinkType(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    return PIPELINE_AFFILIATE_HOSTS.has(host) || PIPELINE_AFFILIATE_HOSTS.has('www.' + host) ? 'affiliate' : 'brand';
+  } catch {
+    return 'brand';
   }
 }
 
@@ -425,17 +440,18 @@ function sanitizeAffiliateLinks(links) {
       return true;
     })
     .map((link) => {
+      const link_type = link.link_type ?? detectLinkType(link.url);
       try {
         const parsed = new URL(link.url);
         const host = parsed.hostname.toLowerCase();
         if (host.includes('amazon.in') || host.includes('amazon.com')) {
           parsed.searchParams.set('tag', AFFILIATE_TAG);
-          return { ...link, url: parsed.toString(), is_affiliate: true };
+          return { ...link, url: parsed.toString(), is_affiliate: true, link_type };
         }
       } catch {
         // Invalid URL — keep as-is
       }
-      return link;
+      return { ...link, link_type };
     });
 }
 

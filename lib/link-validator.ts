@@ -13,6 +13,36 @@ interface AffLink {
   store: string;
   url: string;
   is_affiliate: boolean;
+  link_type?: 'affiliate' | 'brand';
+}
+
+const AFFILIATE_HOSTNAMES = new Set([
+  'amazon.in',
+  'amazon.com',
+  'www.amazon.in',
+  'www.amazon.com',
+  'flipkart.com',
+  'www.flipkart.com',
+  'meesho.com',
+  'www.meesho.com',
+]);
+
+/**
+ * Detect whether a URL is an affiliate store link or a brand/official link.
+ * Affiliate: Amazon, Flipkart, Meesho (tracked via /api/go)
+ * Brand: everything else (rendered as direct <a href>)
+ */
+export function detectLinkType(url: string): 'affiliate' | 'brand' {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (AFFILIATE_HOSTNAMES.has(host)) return 'affiliate';
+    // Check without www prefix too
+    const bare = host.replace(/^www\./, '');
+    if (AFFILIATE_HOSTNAMES.has(bare)) return 'affiliate';
+    return 'brand';
+  } catch {
+    return 'brand';
+  }
 }
 
 /**
@@ -43,6 +73,9 @@ export function validateAffiliateUrl(url: string, store: string): LinkValidation
     if (host.includes('flipkart.com')) {
       if (parsed.pathname.includes('/p/')) {
         return { url, store, status: 'valid' };
+      }
+      if (parsed.pathname.includes('/product-reviews/')) {
+        return { url, store, status: 'broken', reason: 'Review page, not a product page' };
       }
       if (parsed.pathname.includes('/search')) {
         return { url, store, status: 'broken', reason: 'Search URL, not a product page' };
@@ -81,6 +114,7 @@ export function isValidProductUrl(url: string): boolean {
  * Sanitize and validate affiliate links.
  * - Removes broken links (search URLs, invalid URLs, non-product pages)
  * - Adds affiliate tag to Amazon URLs
+ * - Auto-sets link_type based on hostname
  * - Returns only valid/suspicious links (suspicious kept for manual review)
  */
 export function sanitizeAndValidateLinks(links: AffLink[]): { sanitized: AffLink[]; removed: number } {
@@ -96,17 +130,18 @@ export function sanitizeAndValidateLinks(links: AffLink[]): { sanitized: AffLink
       return true;
     })
     .map((link) => {
+      const linkType = link.link_type ?? detectLinkType(link.url);
       try {
         const parsed = new URL(link.url);
         const host = parsed.hostname.toLowerCase();
         if (host.includes('amazon.in') || host.includes('amazon.com')) {
           parsed.searchParams.set('tag', AFFILIATE_TAG);
-          return { ...link, url: parsed.toString(), is_affiliate: true };
+          return { ...link, url: parsed.toString(), is_affiliate: true, link_type: linkType as 'affiliate' | 'brand' };
         }
       } catch {
         // keep as-is
       }
-      return link;
+      return { ...link, link_type: linkType as 'affiliate' | 'brand' };
     });
 
   return { sanitized, removed };

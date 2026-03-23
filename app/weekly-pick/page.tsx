@@ -231,23 +231,34 @@ export default async function WeeklyPickPage() {
                 return (
                   <div className="space-y-2 mt-5">
                     <p className="text-[10px] font-sans font-bold uppercase tracking-widest text-charcoal-400">Where to Buy</p>
-                    {links.map((link, idx) => (
+                    {links.map((link, idx) => {
+                      const isFirstDirect = idx === 0 && link.linkType !== 'search';
+                      const href = link.linkType === 'affiliate'
+                        ? `/api/go?product_id=${product.id}&store=${encodeURIComponent(link.store)}`
+                        : link.url;
+                      const label = link.linkType === 'search'
+                        ? `Search ${link.store}`
+                        : link.linkType === 'brand'
+                          ? `View on ${link.store} ↗`
+                          : `Buy on ${link.store} ↗`;
+                      return (
                     <a
                       key={`${link.store}-${idx}`}
-                      href={link.isSearch ? link.url : `/api/go?product_id=${product.id}&store=${encodeURIComponent(link.store)}`}
+                      href={href}
                       target="_blank"
                       rel="noopener noreferrer"
                       className={`block w-full text-center text-sm py-3 px-4 font-sans font-bold transition-all rounded-lg ${
-                        idx === 0 && !link.isSearch
+                        isFirstDirect
                           ? 'bg-orange text-white hover:bg-orange/90 shadow-[0_4px_14px_0_rgba(255,87,51,0.39)] hover:shadow-[0_6px_20px_0_rgba(255,87,51,0.23)] hover:-translate-y-0.5'
-                          : link.isSearch
+                          : link.linkType === 'search'
                             ? 'border border-dashed border-gray-300 text-charcoal-500 hover:border-charcoal hover:text-ink'
                             : 'border border-gray-200 text-charcoal-700 hover:bg-gray-50'
                       }`}
                     >
-                      {link.isSearch ? `Search ${link.store}` : `Buy on ${link.store} ↗`}
+                      {label}
                     </a>
-                  ))}
+                      );
+                    })}
                 </div>
                 );
               })()}

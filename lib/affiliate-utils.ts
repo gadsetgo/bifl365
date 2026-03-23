@@ -1,5 +1,5 @@
 import type { AffiliateLink } from './types';
-import { validateAffiliateUrl } from './link-validator';
+import { validateAffiliateUrl, detectLinkType } from './link-validator';
 
 /** Generate a search URL for a given store and product query */
 export function makeSearchUrl(store: string, productName: string): string {
@@ -17,39 +17,48 @@ export function classifyLink(link: AffiliateLink): 'direct' | 'search' {
   return 'direct';
 }
 
+export interface DisplayLink {
+  store: string;
+  url: string;
+  isSearch: boolean;
+  linkType: 'affiliate' | 'brand' | 'search';
+}
+
 /**
  * Get display-ready links for a product.
- * - Valid direct links show "Buy on {store}"
- * - Broken/suspicious links show "Search {store}"
- * - If no links at all, generate search fallbacks for Amazon + Flipkart
+ * - Valid affiliate links (Amazon/Flipkart/Meesho) → tracked via /api/go
+ * - Valid brand links (official sites) → direct <a href>
+ * - Broken/suspicious links → search fallback
+ * - No links at all → default Amazon + Flipkart search fallbacks
  */
 export function getDisplayLinks(
   affiliateLinks: AffiliateLink[] | null,
   legacyAmazon: string | null | undefined,
   legacyFlipkart: string | null | undefined,
   productName: string,
-): { store: string; url: string; isSearch: boolean }[] {
+): DisplayLink[] {
   const links = [...(affiliateLinks ?? [])];
   if (links.length === 0) {
     if (legacyAmazon) links.push({ store: 'Amazon', url: legacyAmazon, is_affiliate: false });
     if (legacyFlipkart) links.push({ store: 'Flipkart', url: legacyFlipkart, is_affiliate: false });
   }
 
-  const result: { store: string; url: string; isSearch: boolean }[] = [];
+  const result: DisplayLink[] = [];
 
   for (const link of links) {
     const type = classifyLink(link);
     if (type === 'search') {
-      result.push({ store: link.store, url: makeSearchUrl(link.store, productName), isSearch: true });
+      result.push({ store: link.store, url: makeSearchUrl(link.store, productName), isSearch: true, linkType: 'search' });
     } else {
-      result.push({ store: link.store, url: link.url, isSearch: false });
+      const lt = link.link_type ?? detectLinkType(link.url);
+      result.push({ store: link.store, url: link.url, isSearch: false, linkType: lt });
     }
   }
 
   // If no links at all, provide search fallbacks
   if (result.length === 0) {
-    result.push({ store: 'Amazon', url: makeSearchUrl('Amazon', productName), isSearch: true });
-    result.push({ store: 'Flipkart', url: makeSearchUrl('Flipkart', productName), isSearch: true });
+    result.push({ store: 'Amazon', url: makeSearchUrl('Amazon', productName), isSearch: true, linkType: 'search' });
+    result.push({ store: 'Flipkart', url: makeSearchUrl('Flipkart', productName), isSearch: true, linkType: 'search' });
   }
 
   return result;

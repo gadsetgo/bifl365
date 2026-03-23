@@ -5,6 +5,7 @@ export interface AffiliateLink {
   store: string;
   url: string;
   is_affiliate: boolean;
+  link_type?: 'affiliate' | 'brand';
 }
 
 export interface ProductScores {

@@ -17,9 +17,21 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cat = params.slug as CategoryType;
   if (!VALID_CATEGORIES.includes(cat)) return {};
+  const label = CATEGORY_LABELS[cat];
+  const description = `The best Buy It For Life products in the ${label} category, scored for Indian buyers.`;
   return {
-    title: `${CATEGORY_LABELS[cat]} — BIFL Products`,
-    description: `The best Buy It For Life products in the ${CATEGORY_LABELS[cat]} category, scored for Indian buyers.`,
+    title: `${label} — BIFL Products`,
+    description,
+    openGraph: {
+      title: `${label} — BIFL365`,
+      description,
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary',
+      title: `${label} — BIFL365`,
+      description,
+    },
   };
 }
 

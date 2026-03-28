@@ -148,6 +148,14 @@ output/
 # Claude Code local state
 .claude/
 
+# next-pwa generated service worker files
+public/sw.js
+public/sw.js.map
+public/workbox-*.js
+public/workbox-*.js.map
+public/worker-*.js
+public/worker-*.js.map
+
 # Developer planning / session notes
 instructions.md
 implementation_plan.md

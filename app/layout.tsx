@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Playfair_Display, Inter } from 'next/font/google';
 import './globals.css';
 import { Header } from '@/components/Header';
@@ -17,6 +17,10 @@ const inter = Inter({
   display: 'swap',
 });
 
+export const viewport: Viewport = {
+  themeColor: '#FF5733',
+};
+
 export const metadata: Metadata = {
   title: {
     default: 'BIFL365 — Buy It For Life | Products Built to Last, Reviewed for India',
@@ -25,6 +29,12 @@ export const metadata: Metadata = {
   description:
     'Weekly AI-curated Buy It For Life product awards for Indian buyers. Scored on build quality, longevity, repairability, value, and India availability.',
   keywords: ['BIFL', 'buy it for life', 'durable products', 'India', 'product reviews', 'lifetime warranty'],
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'BIFL365',
+  },
   openGraph: {
     title: 'BIFL365 — Products Built to Last a Lifetime',
     description: 'Weekly AI-curated BIFL product awards for Indian buyers.',

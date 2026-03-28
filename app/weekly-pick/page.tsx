@@ -6,15 +6,36 @@ import { ProductImage } from '@/components/ProductImage';
 import { ShareButtons } from '@/components/ShareButtons';
 import type { Product } from '@/lib/types';
 import { getDisplayLinks } from '@/lib/affiliate-utils';
+import { CATEGORY_LABELS } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: "This Week's Pick",
-  description: "BIFL365 featured product this week — full AI score breakdown, specs analysis, Reddit sentiment, and buy links.",
-};
-
-import { CATEGORY_LABELS } from '@/lib/constants';
+export async function generateMetadata(): Promise<Metadata> {
+  const product = await getFeaturedProduct();
+  if (!product) {
+    return {
+      title: "This Week's Pick",
+      description: "BIFL365 featured product this week — full AI score breakdown, specs analysis, Reddit sentiment, and buy links.",
+    };
+  }
+  const totalScore = product.scores ? Object.values(product.scores).reduce((a, b) => a + b, 0) : null;
+  return {
+    title: `${product.brand} ${product.name} — This Week's Pick`,
+    description: product.summary?.slice(0, 155) ?? `This week's BIFL365 featured pick: ${product.brand} ${product.name}.`,
+    openGraph: {
+      title: `${product.brand} ${product.name} — BIFL365 Weekly Pick`,
+      description: product.summary?.slice(0, 155) ?? '',
+      type: 'article',
+      images: product.image_url ? [{ url: product.image_url, width: 1200, height: 630 }] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${product.brand} ${product.name} — BIFL Score: ${totalScore ?? '?'}/100`,
+      description: product.summary?.slice(0, 155) ?? '',
+      images: product.image_url ? [product.image_url] : undefined,
+    },
+  };
+}
 
 async function getFeaturedProduct(): Promise<Product | null> {
   const { data } = await supabase

@@ -1,0 +1,27 @@
+{
+  "name": "BIFL365 — Buy It For Life",
+  "short_name": "BIFL365",
+  "description": "Weekly AI-curated durable product awards for Indian buyers. Scored on build quality, longevity, repairability, value, and availability.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1C1C1C",
+  "theme_color": "#FF5733",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "categories": ["shopping", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "prebuild": "node -e \"require('fs').rmSync('.next/types', {recursive:true,force:true})\"",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "next lint",
     "pipeline": "node local-pipeline.mjs",
@@ -16,6 +17,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@google/generative-ai": "^0.21.0",
     "@supabase/supabase-js": "^2.49.2",
     "axios": "^1.13.6",

@@ -8,23 +8,37 @@ export const dynamic = 'force-dynamic';
 import type { CategoryType, Product } from '@/lib/types';
 import { VALID_CATEGORIES, CATEGORY_LABELS, CATEGORY_HOOKS } from '@/lib/constants';
 
-type Props = { params: { slug: string } };
+type Props = { params: Promise<{ slug: string }> };
 
 export function generateStaticParams() {
   return VALID_CATEGORIES.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const cat = params.slug as CategoryType;
+  const { slug } = await params;
+  const cat = slug as CategoryType;
   if (!VALID_CATEGORIES.includes(cat)) return {};
+  const label = CATEGORY_LABELS[cat];
+  const description = `The best Buy It For Life products in the ${label} category, scored for Indian buyers.`;
   return {
-    title: `${CATEGORY_LABELS[cat]} — BIFL Products`,
-    description: `The best Buy It For Life products in the ${CATEGORY_LABELS[cat]} category, scored for Indian buyers.`,
+    title: `${label} — BIFL Products`,
+    description,
+    openGraph: {
+      title: `${label} — BIFL365`,
+      description,
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary',
+      title: `${label} — BIFL365`,
+      description,
+    },
   };
 }
 
 export default async function CategoryPage({ params }: Props) {
-  const slug = params.slug as CategoryType;
+  const { slug: slugRaw } = await params;
+  const slug = slugRaw as CategoryType;
   if (!VALID_CATEGORIES.includes(slug)) notFound();
 
   const { data: products } = await supabase

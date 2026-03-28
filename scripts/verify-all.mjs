@@ -1,32 +1,151 @@
+#!/usr/bin/env node
+
+/**
+ * Interactive link fixer for all products.
+ *
+ * Usage:
+ *   node scripts/verify-all.mjs --flipkart            # fix only Flipkart links
+ *   node scripts/verify-all.mjs --amazon               # fix only Amazon links
+ *   node scripts/verify-all.mjs --brand                # fix only brand/official links
+ *   node scripts/verify-all.mjs --all                  # fix all link types (default)
+ *   node scripts/verify-all.mjs --flipkart --amazon    # fix Flipkart + Amazon
+ *   node scripts/verify-all.mjs --all --auto           # skip per-product confirm, ask once at end
+ *
+ * Flow:
+ *   1. Scan all products for broken/missing links of selected types
+ *   2. Use Gemini Search to find correct URLs
+ *   3. Show old → new comparison with clickable hyperlinks
+ *   4. Confirm before writing to database
+ */
+
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
+import { createInterface } from 'readline';
+
+// ─── Config ──────────────────────────────────────────────────────────────
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const apiKey = process.env.GEMINI_API_KEY;
-const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const AFFILIATE_TAG = 'bifl365-21';
+
+if (!supabaseUrl || !serviceKey) { console.error('Missing SUPABASE env vars'); process.exit(1); }
+if (!apiKey) { console.error('Missing GEMINI_API_KEY'); process.exit(1); }
 
 const sb = createClient(supabaseUrl, serviceKey);
 
+// ─── CLI flags ───────────────────────────────────────────────────────────
+
+const args = new Set(process.argv.slice(2).map(a => a.toLowerCase()));
+const AUTO_MODE = args.has('--auto');
+
+// If none specified or --all, enable everything
+const explicit = args.has('--amazon') || args.has('--flipkart') || args.has('--brand');
+const FIX_AMAZON   = !explicit || args.has('--all') || args.has('--amazon');
+const FIX_FLIPKART = !explicit || args.has('--all') || args.has('--flipkart');
+const FIX_BRAND    = !explicit || args.has('--all') || args.has('--brand');
+
+// ─── Terminal helpers ────────────────────────────────────────────────────
+
+const C = {
+  reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m',
+  red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m',
+  cyan: '\x1b[36m', magenta: '\x1b[35m', white: '\x1b[37m',
+  bgRed: '\x1b[41m', bgGreen: '\x1b[42m', bgYellow: '\x1b[43m',
+};
+
+/** OSC 8 clickable hyperlink in terminal */
+function link(url, label) {
+  if (!url) return label || '(none)';
+  const display = label || url;
+  return `\x1b]8;;${url}\x07${C.cyan}${display}${C.reset}\x1b]8;;\x07`;
+}
+
+function hr(ch = '─', len = 70) { return C.dim + ch.repeat(len) + C.reset; }
+
+const rl = createInterface({ input: process.stdin, output: process.stdout });
+function ask(question) {
+  return new Promise(resolve => rl.question(question, resolve));
+}
+
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─── Store validation rules ─────────────────────────────────────────────
+
+const STORE_VALIDATORS = {
+  amazon: {
+    label: 'Amazon',
+    match: (url) => {
+      try { const h = new URL(url).hostname; return h.includes('amazon.in') || h.includes('amazon.com'); }
+      catch { return false; }
+    },
+    isValid: (url) => {
+      try { return new URL(url).pathname.match(/\/(dp|gp\/product)\/[A-Z0-9]{10}/i) !== null; }
+      catch { return false; }
+    },
+    fix: (url) => {
+      try {
+        const u = new URL(url);
+        u.searchParams.set('tag', AFFILIATE_TAG);
+        return u.toString();
+      } catch { return url; }
+    },
+  },
+  flipkart: {
+    label: 'Flipkart',
+    match: (url) => {
+      try { return new URL(url).hostname.includes('flipkart.com'); }
+      catch { return false; }
+    },
+    isValid: (url) => {
+      try {
+        const p = new URL(url).pathname;
+        return p.includes('/p/') && !p.includes('/search') && !p.includes('/product-reviews/');
+      } catch { return false; }
+    },
+    fix: (url) => url,
+  },
+  brand: {
+    label: 'Brand/Official',
+    match: (url) => {
+      try {
+        const h = new URL(url).hostname.toLowerCase();
+        return !h.includes('amazon.') && !h.includes('flipkart.com') && !h.includes('meesho.com') && !h.includes('google.com');
+      } catch { return false; }
+    },
+    isValid: (url) => {
+      try { return new URL(url).pathname.length > 1; }
+      catch { return false; }
+    },
+    fix: (url) => url,
+  },
+};
+
+// Which stores are we fixing?
+const activeStores = [];
+if (FIX_AMAZON) activeStores.push('amazon');
+if (FIX_FLIPKART) activeStores.push('flipkart');
+if (FIX_BRAND) activeStores.push('brand');
+
+// ─── Gemini helpers ──────────────────────────────────────────────────────
 
 async function callGemini(prompt, attempt = 1) {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         tools: [{ googleSearch: {} }],
-        generationConfig: { temperature: 0.2 },
+        generationConfig: { temperature: 0.1 },
       }),
     }
   );
   if (res.status === 429 && attempt <= 5) {
     const wait = 10 * attempt;
-    console.log(`  Rate limited, waiting ${wait}s...`);
+    console.log(`  ${C.yellow}Rate limited, waiting ${wait}s...${C.reset}`);
     await delay(wait * 1000);
     return callGemini(prompt, attempt + 1);
   }
@@ -44,239 +163,338 @@ function parseJson(raw) {
   return null;
 }
 
-function sanitize(links) {
-  if (!Array.isArray(links)) return [];
-  return links
-    .filter(l => l?.url && typeof l.url === 'string')
-    .filter(l => !l.url.includes('/s?k=') && !l.url.includes('/search?q='))
-    .map(l => {
-      const r = { store: String(l.store || 'Unknown').trim(), url: l.url.trim(), is_affiliate: Boolean(l.is_affiliate) };
-      try {
-        const u = new URL(r.url);
-        if (u.hostname.includes('amazon.in') || u.hostname.includes('amazon.com')) {
-          u.searchParams.set('tag', AFFILIATE_TAG);
-          r.url = u.toString();
-          r.is_affiliate = true;
-        }
-      } catch {}
-      return r;
-    });
-}
+function buildPrompt(product, stores) {
+  const storeInstructions = [];
 
-async function downloadImage(url) {
-  try {
-    const u = new URL(url);
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(15000),
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/png,image/jpeg,*/*',
-        'Referer': u.origin + '/',
-      },
-      redirect: 'follow',
-    });
-    if (!res.ok) return null;
-    const ct = res.headers.get('content-type') || '';
-    if (!ct.startsWith('image/')) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length < 1500) return null;
-    return { buf, ct };
-  } catch { return null; }
-}
-
-async function upload(productId, buf, ct) {
-  const extMap = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
-  const ext = extMap[ct] || 'jpg';
-  const path = `${productId}/${Date.now()}.${ext}`;
-  const { data, error } = await sb.storage.from('product-images').upload(path, buf, { contentType: ct, upsert: false });
-  if (error) {
-    if (error.message?.includes('already exists')) return null;
-    throw error;
+  if (stores.includes('amazon')) {
+    storeInstructions.push(
+      `1. Amazon India (amazon.in): Find the REAL product page with ASIN. URL format: https://www.amazon.in/dp/REAL_ASIN\n   - MUST contain /dp/ followed by a 10-character ASIN code\n   - Do NOT return search pages (/s?k=...)`
+    );
   }
-  const { data: u } = sb.storage.from('product-images').getPublicUrl(data.path);
-  return u.publicUrl;
-}
+  if (stores.includes('flipkart')) {
+    storeInstructions.push(
+      `2. Flipkart: Find the REAL product page URL. Format: https://www.flipkart.com/product-slug/p/PRODUCT_ID\n   - MUST contain /p/ followed by product identifier\n   - Do NOT return search pages (/search?q=...), category pages, deal pages, or review pages`
+    );
+  }
+  if (stores.includes('brand')) {
+    storeInstructions.push(
+      `3. Brand/Official: Find the manufacturer's official product page URL if it exists.\n   - Must be the brand's own domain (not a marketplace)`
+    );
+  }
 
-// Scrape Amazon product page for high-res image URLs
-async function scrapeAmazonImages(url) {
-  try {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(12000),
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-      redirect: 'follow',
-    });
-    if (!res.ok) return [];
-    const html = await res.text();
-    const imgs = new Set();
-
-    // Method 1: og:image
-    let m;
-    const og1 = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/gi;
-    while ((m = og1.exec(html))) if (m[1]) imgs.add(m[1]);
-    const og2 = /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/gi;
-    while ((m = og2.exec(html))) if (m[1]) imgs.add(m[1]);
-
-    // Method 2: data-old-hires on main image
-    const hiRes = /data-old-hires=["']([^"']+)["']/gi;
-    while ((m = hiRes.exec(html))) if (m[1]) imgs.add(m[1]);
-
-    // Method 3: Amazon media CDN URLs (high-res only)
-    const cdnPattern = /https:\/\/m\.media-amazon\.com\/images\/I\/[A-Za-z0-9._%-]+\.(?:jpg|png|webp)/g;
-    const cdnMatches = html.match(cdnPattern) || [];
-    for (const cu of cdnMatches) {
-      // Only add large/main images, skip thumbnails
-      if (cu.includes('_SL1') || cu.includes('_AC_SL') || cu.includes('_AC_UL') || (!cu.includes('_SS') && !cu.includes('_SR') && !cu.includes('_SX4') && !cu.includes('_SY4'))) {
-        imgs.add(cu);
-      }
-    }
-
-    // Method 4: colorImages/imageGalleryData JSON
-    const jsonPattern = /'colorImages':\s*\{[^}]*'initial':\s*(\[[\s\S]*?\])/;
-    const jsonMatch = html.match(jsonPattern);
-    if (jsonMatch?.[1]) {
-      try {
-        const parsed = JSON.parse(jsonMatch[1].replace(/'/g, '"'));
-        for (const img of parsed) {
-          if (img.hiRes) imgs.add(img.hiRes);
-          if (img.large) imgs.add(img.large);
-        }
-      } catch {}
-    }
-
-    return [...imgs].slice(0, 10);
-  } catch { return []; }
-}
-
-async function verifyProduct(product) {
-  const prompt = `Search for this product and return purchase links and product images.
+  return `Search for this product and find REAL, VERIFIED purchase links.
 
 Product: "${product.name}" by ${product.brand || 'unknown brand'}
+${product.category ? `Category: ${product.category}` : ''}
 
-Find:
-1. Amazon India (amazon.in) product page URL with real ASIN (format: /dp/ASIN)
-2. Flipkart product page URL (not search page)
-3. Brand/manufacturer product page if exists
-4. Direct image URLs: specifically Amazon CDN URLs like https://m.media-amazon.com/images/I/XXXXX._AC_SL1500_.jpg
+Find these links:
+${storeInstructions.join('\n\n')}
 
-Return JSON:
+Return ONLY a JSON object:
 {
   "affiliate_links": [
-    { "store": "Amazon", "url": "URL", "is_affiliate": true },
-    { "store": "Flipkart", "url": "URL", "is_affiliate": false }
-  ],
-  "image_urls": ["direct_image_url_1", "direct_image_url_2"],
-  "notes": "brief"
+    ${stores.includes('amazon') ? '{ "store": "Amazon", "url": "https://www.amazon.in/dp/REAL_ASIN", "is_affiliate": true },' : ''}
+    ${stores.includes('flipkart') ? '{ "store": "Flipkart", "url": "https://www.flipkart.com/product-slug/p/REAL_PID", "is_affiliate": false },' : ''}
+    ${stores.includes('brand') ? '{ "store": "Brand Store", "url": "https://brand.com/product-page", "is_affiliate": false }' : ''}
+  ]
 }
 
-IMPORTANT: Only real URLs from search. Prefer m.media-amazon.com image URLs.`;
+CRITICAL: Only include URLs you actually found via search. Do NOT guess or hallucinate URLs.
+If a store link cannot be found, OMIT that entry entirely — do not include null or placeholder URLs.`;
+}
 
-  const raw = await callGemini(prompt);
-  const v = parseJson(raw);
-  if (!v) throw new Error('JSON parse failed');
+// ─── Product analysis ────────────────────────────────────────────────────
 
-  const newLinks = sanitize(v.affiliate_links || []);
+function analyzeProduct(product) {
+  const links = Array.isArray(product.affiliate_links) ? product.affiliate_links : [];
+  const issues = {}; // storeKey → { current, status }
 
-  // Collect image candidates from Gemini
-  const candidates = [];
-  if (Array.isArray(v.image_urls)) {
-    candidates.push(...v.image_urls.filter(u => typeof u === 'string'));
-  }
-  if (v.image_url && typeof v.image_url === 'string') candidates.push(v.image_url);
-  if (Array.isArray(v.image_candidates)) {
-    candidates.push(...v.image_candidates.filter(u => typeof u === 'string'));
-  }
+  for (const storeKey of activeStores) {
+    const validator = STORE_VALIDATORS[storeKey];
+    const existing = links.find(l => validator.match(l.url));
 
-  // Also extract any image URLs from raw text
-  const imgPattern = /https?:\/\/[^\s"'<>)\]]+\.(?:jpg|jpeg|png|webp)/gi;
-  const textImgs = raw.match(imgPattern) || [];
-  candidates.push(...textImgs);
-
-  // Scrape Amazon pages for images (most reliable source)
-  const amazonLinks = newLinks.filter(l => l.url.includes('amazon'));
-  for (const l of amazonLinks.slice(0, 2)) {
-    console.log(`  Scraping Amazon: ${l.url.substring(0, 60)}...`);
-    const amazonImgs = await scrapeAmazonImages(l.url);
-    console.log(`  Found ${amazonImgs.length} Amazon images`);
-    candidates.unshift(...amazonImgs); // prioritize Amazon images
-  }
-
-  // Deduplicate
-  const unique = [...new Set(candidates)].filter(u => {
-    try { new URL(u); return true; } catch { return false; }
-  });
-
-  console.log(`  Total unique candidates: ${unique.length}`);
-
-  // Download and store
-  const stored = [];
-  for (const url of unique.slice(0, 15)) {
-    if (stored.length >= 3) break; // 3 good images is enough
-    const result = await downloadImage(url);
-    if (!result) continue;
-    try {
-      const storedUrl = await upload(product.id, result.buf, result.ct);
-      if (storedUrl) stored.push(storedUrl);
-    } catch (e) {
-      console.log(`  Upload error: ${e.message?.substring(0, 50)}`);
+    if (!existing) {
+      issues[storeKey] = { current: null, status: 'missing' };
+    } else if (!validator.isValid(existing.url)) {
+      issues[storeKey] = { current: existing, status: 'broken' };
     }
+    // else: valid — no issue
   }
 
-  return { links: newLinks, images: stored, notes: v.notes || '' };
+  return issues;
 }
 
-// ─── Main ───────────────────────────────────────────────────────────────
-const { data: allProducts } = await sb.from('products').select('id, name, brand, affiliate_links, image_url, status');
-console.log(`Total products: ${allProducts.length}\n`);
+// ─── Main ────────────────────────────────────────────────────────────────
 
-const needsWork = [];
-const alreadyGood = [];
+console.log(`\n${C.bold}${'═'.repeat(70)}${C.reset}`);
+console.log(`${C.bold}  BIFL365 Link Fixer${C.reset}`);
+console.log(`  Stores: ${activeStores.map(s => STORE_VALIDATORS[s].label).join(', ')}`);
+console.log(`  Mode: ${AUTO_MODE ? 'Auto (confirm once at end)' : 'Interactive (confirm per product)'}`);
+console.log(`${C.bold}${'═'.repeat(70)}${C.reset}\n`);
+
+// Fetch all products
+const { data: allProducts, error } = await sb
+  .from('products')
+  .select('id, name, brand, category, affiliate_links, status')
+  .order('name');
+
+if (error) { console.error('DB error:', error.message); process.exit(1); }
+console.log(`Total products: ${C.bold}${allProducts.length}${C.reset}\n`);
+
+// Phase 1: Scan for issues
+console.log(`${C.bold}Phase 1: Scanning for broken/missing links...${C.reset}\n`);
+
+const productsWithIssues = [];
 
 for (const p of allProducts) {
-  const hasStoredImage = p.image_url && p.image_url.includes('supabase');
-  const hasLinks = Array.isArray(p.affiliate_links) && p.affiliate_links.length > 0;
-  if (hasStoredImage && hasLinks) {
-    alreadyGood.push(p.name);
-  } else {
-    needsWork.push(p);
+  const issues = analyzeProduct(p);
+  if (Object.keys(issues).length > 0) {
+    productsWithIssues.push({ product: p, issues });
   }
 }
 
-console.log(`Already good: ${alreadyGood.length}`);
-alreadyGood.forEach(n => console.log(`  ✓ ${n}`));
-console.log(`\nNeed work: ${needsWork.length}\n`);
+if (productsWithIssues.length === 0) {
+  console.log(`${C.green}All products have valid links for selected stores. Nothing to fix!${C.reset}\n`);
+  rl.close();
+  process.exit(0);
+}
 
-let ok = 0, err = 0, imgOk = 0;
+// Show summary
+console.log(`${C.yellow}Found ${productsWithIssues.length} product(s) with issues:${C.reset}\n`);
 
-for (let i = 0; i < needsWork.length; i++) {
-  const p = needsWork[i];
-  const tag = `[${i + 1}/${needsWork.length}]`;
+for (const { product, issues } of productsWithIssues) {
+  const tags = Object.entries(issues).map(([store, info]) => {
+    const label = STORE_VALIDATORS[store].label;
+    const color = info.status === 'missing' ? C.red : C.yellow;
+    return `${color}${label}: ${info.status}${C.reset}`;
+  });
+  console.log(`  ${product.name.substring(0, 50).padEnd(50)} ${tags.join('  ')}`);
+}
+
+console.log('');
+
+const proceed = await ask(`${C.bold}Proceed to search for correct links? (y/n): ${C.reset}`);
+if (proceed.toLowerCase() !== 'y') {
+  console.log('Aborted.');
+  rl.close();
+  process.exit(0);
+}
+
+// Phase 2: Search for correct links via Gemini
+console.log(`\n${C.bold}Phase 2: Searching for correct links via Gemini...${C.reset}\n`);
+
+/** @type {{ product: any, oldLinks: any[], newLinks: any[], changes: { store: string, old: string|null, new: string|null, storeKey: string }[] }[]} */
+const proposals = [];
+
+for (let i = 0; i < productsWithIssues.length; i++) {
+  const { product, issues } = productsWithIssues[i];
+  const tag = `[${i + 1}/${productsWithIssues.length}]`;
+  const storesToFix = Object.keys(issues);
+
+  process.stdout.write(`${C.dim}${tag}${C.reset} ${product.name.substring(0, 50).padEnd(50)} `);
+
   try {
-    const r = await verifyProduct(p);
-    const updates = {};
-    if (r.links.length > 0) updates.affiliate_links = r.links;
-    if (r.images.length > 0) {
-      updates.image_candidates = r.images;
-      updates.image_url = r.images[0];
-      updates.image_approved = false;
-      imgOk++;
+    const prompt = buildPrompt(product, storesToFix);
+    const raw = await callGemini(prompt);
+    const parsed = parseJson(raw);
+
+    if (!parsed || !Array.isArray(parsed.affiliate_links)) {
+      console.log(`${C.red}✗ parse failed${C.reset}`);
+      if (i < productsWithIssues.length - 1) await delay(2000);
+      continue;
     }
-    if (Object.keys(updates).length > 0) {
-      await sb.from('products').update(updates).eq('id', p.id);
+
+    const existingLinks = Array.isArray(product.affiliate_links) ? [...product.affiliate_links] : [];
+    const changes = [];
+
+    for (const storeKey of storesToFix) {
+      const validator = STORE_VALIDATORS[storeKey];
+      const issue = issues[storeKey];
+
+      // Find the Gemini suggestion for this store
+      const suggestion = parsed.affiliate_links.find(l => {
+        if (!l?.url || typeof l.url !== 'string') return false;
+        return validator.match(l.url.trim());
+      });
+
+      if (!suggestion || !validator.isValid(suggestion.url.trim())) {
+        // Gemini couldn't find a valid link for this store
+        changes.push({
+          store: validator.label,
+          storeKey,
+          old: issue.current?.url || null,
+          new: null,
+        });
+        continue;
+      }
+
+      let newUrl = suggestion.url.trim();
+      newUrl = validator.fix(newUrl); // apply store-specific fixes (e.g., affiliate tag)
+
+      changes.push({
+        store: validator.label,
+        storeKey,
+        old: issue.current?.url || null,
+        new: newUrl,
+      });
     }
-    console.log(`${tag} ${p.name.substring(0, 42).padEnd(42)} | links:${r.links.length} imgs:${r.images.length}`);
-    ok++;
-    if (i < needsWork.length - 1) await delay(3000);
+
+    const foundCount = changes.filter(c => c.new).length;
+    if (foundCount > 0) {
+      console.log(`${C.green}✓ found ${foundCount}/${storesToFix.length}${C.reset}`);
+      proposals.push({ product, oldLinks: existingLinks, changes });
+    } else {
+      console.log(`${C.yellow}~ no valid links found${C.reset}`);
+    }
+
+    if (i < productsWithIssues.length - 1) await delay(2500);
   } catch (e) {
-    console.log(`${tag} ${p.name.substring(0, 42).padEnd(42)} | ERR: ${e.message?.substring(0, 60)}`);
-    err++;
+    console.log(`${C.red}✗ ${e.message?.substring(0, 50)}${C.reset}`);
     await delay(4000);
   }
 }
 
-console.log(`\n${'═'.repeat(60)}`);
-console.log(`Done! OK: ${ok} | Errors: ${err} | Images stored: ${imgOk}/${needsWork.length}`);
-console.log(`${'═'.repeat(60)}`);
+if (proposals.length === 0) {
+  console.log(`\n${C.yellow}No valid replacement links found. Nothing to update.${C.reset}\n`);
+  rl.close();
+  process.exit(0);
+}
+
+// Phase 3: Review & Confirm
+console.log(`\n${C.bold}${'═'.repeat(70)}${C.reset}`);
+console.log(`${C.bold}  Phase 3: Review Proposed Changes (${proposals.length} products)${C.reset}`);
+console.log(`${C.bold}${'═'.repeat(70)}${C.reset}\n`);
+
+const approved = [];
+
+for (let i = 0; i < proposals.length; i++) {
+  const { product, oldLinks, changes } = proposals[i];
+  const hasNewLinks = changes.some(c => c.new);
+  if (!hasNewLinks) continue;
+
+  console.log(`${C.bold}${C.white}[${i + 1}/${proposals.length}] ${product.name}${C.reset}`);
+  console.log(`${C.dim}  Brand: ${product.brand || 'N/A'}  |  Category: ${product.category || 'N/A'}  |  Status: ${product.status || 'N/A'}${C.reset}`);
+  console.log(hr());
+
+  for (const change of changes) {
+    if (!change.new && !change.old) continue;
+
+    const storeLabel = `  ${change.store.padEnd(16)}`;
+
+    if (change.old && change.new) {
+      // Replacement
+      console.log(`${storeLabel}${C.red}OLD:${C.reset} ${link(change.old, change.old.length > 80 ? change.old.substring(0, 77) + '...' : change.old)}`);
+      console.log(`${' '.repeat(18)}${C.green}NEW:${C.reset} ${link(change.new, change.new.length > 80 ? change.new.substring(0, 77) + '...' : change.new)}`);
+    } else if (!change.old && change.new) {
+      // New link (was missing)
+      console.log(`${storeLabel}${C.dim}OLD:${C.reset} ${C.dim}(missing)${C.reset}`);
+      console.log(`${' '.repeat(18)}${C.green}NEW:${C.reset} ${link(change.new, change.new.length > 80 ? change.new.substring(0, 77) + '...' : change.new)}`);
+    } else if (change.old && !change.new) {
+      // Could not find replacement
+      console.log(`${storeLabel}${C.yellow}OLD:${C.reset} ${link(change.old, change.old.length > 80 ? change.old.substring(0, 77) + '...' : change.old)}`);
+      console.log(`${' '.repeat(18)}${C.dim}NEW: (not found — will keep old)${C.reset}`);
+    }
+  }
+
+  console.log(hr());
+
+  if (!AUTO_MODE) {
+    const answer = await ask(`  ${C.bold}Apply these changes? (y)es / (n)o / (a)ll remaining / (q)uit: ${C.reset}`);
+    const a = answer.toLowerCase().trim();
+
+    if (a === 'q') {
+      console.log('\nAborted. No further changes will be made.\n');
+      break;
+    } else if (a === 'a') {
+      // Approve this and all remaining
+      approved.push({ product, oldLinks, changes });
+      for (let j = i + 1; j < proposals.length; j++) {
+        if (proposals[j].changes.some(c => c.new)) {
+          approved.push(proposals[j]);
+        }
+      }
+      console.log(`\n${C.green}Approved all remaining ${approved.length - (approved.length - (proposals.length - i))} products.${C.reset}\n`);
+      break;
+    } else if (a === 'y') {
+      approved.push({ product, oldLinks, changes });
+      console.log(`  ${C.green}✓ Approved${C.reset}\n`);
+    } else {
+      console.log(`  ${C.yellow}✗ Skipped${C.reset}\n`);
+    }
+  } else {
+    approved.push({ product, oldLinks, changes });
+    console.log('');
+  }
+}
+
+if (AUTO_MODE && approved.length > 0) {
+  const answer = await ask(`\n${C.bold}Apply all ${approved.length} changes above? (y/n): ${C.reset}`);
+  if (answer.toLowerCase().trim() !== 'y') {
+    console.log('Aborted. No changes made.\n');
+    rl.close();
+    process.exit(0);
+  }
+}
+
+if (approved.length === 0) {
+  console.log(`\n${C.yellow}No changes approved. Database unchanged.${C.reset}\n`);
+  rl.close();
+  process.exit(0);
+}
+
+// Phase 4: Apply changes
+console.log(`\n${C.bold}Phase 4: Writing ${approved.length} product(s) to database...${C.reset}\n`);
+
+let written = 0, writeErrors = 0;
+
+for (const { product, oldLinks, changes } of approved) {
+  try {
+    // Start with existing links
+    let updatedLinks = [...oldLinks];
+
+    for (const change of changes) {
+      if (!change.new) continue; // no replacement found — keep old
+
+      const validator = STORE_VALIDATORS[change.storeKey];
+
+      // Remove old links for this store
+      updatedLinks = updatedLinks.filter(l => !validator.match(l.url));
+
+      // Add the new link
+      const isAffiliate = change.storeKey === 'amazon';
+      updatedLinks.push({
+        store: change.store,
+        url: change.new,
+        is_affiliate: isAffiliate,
+        link_type: change.storeKey === 'brand' ? 'brand' : 'affiliate',
+      });
+    }
+
+    const { error: updateError } = await sb
+      .from('products')
+      .update({ affiliate_links: updatedLinks })
+      .eq('id', product.id);
+
+    if (updateError) throw updateError;
+
+    console.log(`  ${C.green}✓${C.reset} ${product.name.substring(0, 55)}`);
+    written++;
+  } catch (e) {
+    console.log(`  ${C.red}✗${C.reset} ${product.name.substring(0, 55)} — ${e.message?.substring(0, 40)}`);
+    writeErrors++;
+  }
+}
+
+// Summary
+console.log(`\n${C.bold}${'═'.repeat(70)}${C.reset}`);
+console.log(`${C.bold}  Summary${C.reset}`);
+console.log(`${C.bold}${'═'.repeat(70)}${C.reset}`);
+console.log(`  Products scanned:   ${allProducts.length}`);
+console.log(`  Issues found:       ${productsWithIssues.length}`);
+console.log(`  Proposals:          ${proposals.length}`);
+console.log(`  Approved:           ${approved.length}`);
+console.log(`  ${C.green}Written to DB:     ${written}${C.reset}`);
+if (writeErrors > 0) console.log(`  ${C.red}Write errors:       ${writeErrors}${C.reset}`);
+console.log(`${C.bold}${'═'.repeat(70)}${C.reset}\n`);
+
+rl.close();

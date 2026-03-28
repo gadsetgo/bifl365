@@ -138,6 +138,11 @@ function HeaderInner() {
               Menu {mobileMenuOpen ? '▲' : '▼'}
             </button>
 
+            {/* Blog link — desktop */}
+            <Link href="/blog" className="hidden lg:inline-flex text-xs font-sans font-semibold text-ink hover:text-orange transition-colors h-9 items-center">
+              Blog
+            </Link>
+
             {/* Weekly CTA */}
             <Link
               href="/weekly-pick"

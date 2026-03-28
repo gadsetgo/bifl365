@@ -46,6 +46,7 @@ export function Footer() {
               {[
                 { href: '/products', label: 'All Products' },
                 { href: '/weekly-pick', label: 'Weekly Pick' },
+                { href: '/blog', label: 'Blog' },
               ].map(({ href, label }) => (
                 <li key={href}>
                   <Link href={href} className="text-xs font-sans text-charcoal-200 hover:text-orange transition-colors duration-150 flex items-center gap-2">

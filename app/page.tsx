@@ -6,6 +6,7 @@ import { AwardStamp } from '@/components/AwardBadge';
 import { CategoryStrip } from '@/components/CategoryStrip';
 import { CATEGORIES } from '@/lib/constants';
 import type { Product } from '@/lib/types';
+import { LoadMoreProducts } from '@/components/LoadMoreProducts';
 
 export const dynamic = 'force-dynamic';
 
@@ -190,6 +191,7 @@ export default async function HomePage() {
                 <ProductCard key={p.id} product={p} />
               ))}
             </div>
+            <LoadMoreProducts initialOffset={recent.length} />
           </div>
         </section>
       )}

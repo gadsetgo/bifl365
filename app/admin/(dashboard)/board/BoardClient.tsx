@@ -4,7 +4,8 @@ import { useState, useMemo, useRef, useEffect, Fragment } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CATEGORIES } from '@/lib/constants';
-import type { Product, AwardType } from '@/lib/types';
+import type { Product, AwardType, AffiliateLink } from '@/lib/types';
+import { LinkFixerPanel } from './LinkFixerPanel';
 
 type SuggestionRow = {
   id: string;
@@ -111,6 +112,7 @@ export function BoardClient({
 
   // Fix links state
   const [fixingLinks, setFixingLinks] = useState(false);
+  const [showLinkFixer, setShowLinkFixer] = useState(false);
 
   // Store image state
   const [storingImage, setStoringImage] = useState<Set<string>>(new Set());
@@ -618,12 +620,15 @@ export function BoardClient({
                 )}
               </div>
               <button
-                onClick={fixAllLinks}
-                disabled={fixingLinks}
-                className="h-9 px-3 border border-charcoal text-xs font-bold uppercase tracking-widest hover:bg-charcoal hover:text-paper disabled:opacity-50 transition-colors"
-                title="Fix affiliate tags and remove search URLs"
+                onClick={() => setShowLinkFixer(v => !v)}
+                className={`h-9 px-3 border text-xs font-bold uppercase tracking-widest transition-colors ${
+                  showLinkFixer
+                    ? 'bg-orange text-paper border-orange'
+                    : 'border-charcoal hover:bg-charcoal hover:text-paper'
+                }`}
+                title="Scan, search & fix affiliate links interactively"
               >
-                {fixingLinks ? '...' : 'Fix Links'}
+                Fix Links
               </button>
               <button
                 onClick={auditLinks}
@@ -699,6 +704,20 @@ export function BoardClient({
                 </button>
               </div>
             </div>
+          )}
+
+          {/* Link Fixer panel */}
+          {showLinkFixer && (
+            <LinkFixerPanel
+              products={products}
+              onClose={() => setShowLinkFixer(false)}
+              onProductsUpdated={(updates) => {
+                setProducts(prev => prev.map(p => {
+                  const u = updates.find(u => u.id === p.id);
+                  return u ? { ...p, affiliate_links: u.affiliate_links } as Product : p;
+                }));
+              }}
+            />
           )}
 
           {/* Duplicate clusters panel */}

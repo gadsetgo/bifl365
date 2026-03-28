@@ -30,6 +30,14 @@ export const metadata: Metadata = {
     'Weekly AI-curated Buy It For Life product awards for Indian buyers. Scored on build quality, longevity, repairability, value, and India availability.',
   keywords: ['BIFL', 'buy it for life', 'durable products', 'India', 'product reviews', 'lifetime warranty'],
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    shortcut: '/favicon.ico',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

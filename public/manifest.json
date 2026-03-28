@@ -2,6 +2,7 @@
   "name": "BIFL365 — Buy It For Life",
   "short_name": "BIFL365",
   "description": "Weekly AI-curated durable product awards for Indian buyers. Scored on build quality, longevity, repairability, value, and availability.",
+  "id": "bifl365-app",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -28,6 +29,29 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "This Week's Pick",
+      "short_name": "This Week",
+      "description": "See this week's featured BIFL product",
+      "url": "/weekly-pick",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "All Products",
+      "short_name": "Products",
+      "description": "Browse all BIFL365 products",
+      "url": "/products",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Blog",
+      "short_name": "Blog",
+      "description": "Read the BIFL365 blog",
+      "url": "/blog",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ],
   "screenshots": [

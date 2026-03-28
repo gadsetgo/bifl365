@@ -5,16 +5,17 @@ import Link from 'next/link';
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string };
+  searchParams: Promise<{ error?: string }>;
 }) {
   const session = await auth();
   if (session) {
     redirect('/admin');
   }
 
-  const errorMsg = searchParams?.error === 'AccessDenied' 
-    ? "Access Denied. You must use the authorized admin email." 
-    : searchParams?.error;
+  const { error } = await searchParams;
+  const errorMsg = error === 'AccessDenied'
+    ? "Access Denied. You must use the authorized admin email."
+    : error;
 
   return (
     <div className="min-h-screen bg-charcoal flex items-center justify-center p-4">

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "generate-pwa-assets": "node scripts/generate-pwa-assets.mjs",
     "prebuild": "node -e \"require('fs').rmSync('.next/types', {recursive:true,force:true})\"",
     "build": "next build --webpack",
     "start": "next start",

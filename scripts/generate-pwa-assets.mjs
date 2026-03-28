@@ -3,7 +3,7 @@
  * Run once: node scripts/generate-pwa-assets.mjs
  */
 import sharp from 'sharp';
-import { readFileSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -90,6 +90,29 @@ function cardsSvg(width, cardW, cols) {
     .png()
     .toFile(join(publicDir, 'screenshot-desktop.png'));
   console.log('✓ screenshot-desktop.png');
+}
+
+// ── favicon.ico (ICO wrapper around embedded 32x32 PNG) ───────────────────────
+{
+  const png32 = await sharp(iconSvg).resize(32, 32).png().toBuffer();
+  // ICO format: 6-byte ICONDIR + 16-byte ICONDIRENTRY + PNG data
+  const header = Buffer.alloc(6);
+  header.writeUInt16LE(0, 0);  // reserved
+  header.writeUInt16LE(1, 2);  // type: ICO
+  header.writeUInt16LE(1, 4);  // image count
+
+  const entry = Buffer.alloc(16);
+  entry.writeUInt8(32, 0);     // width
+  entry.writeUInt8(32, 1);     // height
+  entry.writeUInt8(0, 2);      // color count
+  entry.writeUInt8(0, 3);      // reserved
+  entry.writeUInt16LE(1, 4);   // planes
+  entry.writeUInt16LE(32, 6);  // bit count
+  entry.writeUInt32LE(png32.length, 8);   // bytes in image
+  entry.writeUInt32LE(22, 12); // offset to image data (6 + 16)
+
+  writeFileSync(join(publicDir, 'favicon.ico'), Buffer.concat([header, entry, png32]));
+  console.log('✓ favicon.ico');
 }
 
 console.log('\nAll PWA assets generated in /public');

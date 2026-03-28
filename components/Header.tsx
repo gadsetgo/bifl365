@@ -10,7 +10,7 @@ function HeaderInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(true);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement | null>(null);

@@ -2,6 +2,7 @@
   "name": "BIFL365 — Buy It For Life",
   "short_name": "BIFL365",
   "description": "Weekly AI-curated durable product awards for Indian buyers. Scored on build quality, longevity, repairability, value, and availability.",
+  "id": "bifl365-app",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

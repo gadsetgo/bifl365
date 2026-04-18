@@ -1,4 +1,18 @@
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+export const dynamic = 'force-dynamic';
+
+function getGamesEnabled(): boolean {
+  try {
+    const config = JSON.parse(readFileSync(join(process.cwd(), 'bifl365.config.json'), 'utf-8'));
+    return config.games_enabled !== false;
+  } catch {
+    return true;
+  }
+}
 
 interface Game {
   id: string;
@@ -44,6 +58,8 @@ function GameCard({ game }: { game: Game }) {
 }
 
 export default function GamesPage() {
+  if (!getGamesEnabled()) notFound();
+
   return (
     <main className="min-h-screen bg-paper">
       <div className="max-w-5xl mx-auto px-4 py-12">

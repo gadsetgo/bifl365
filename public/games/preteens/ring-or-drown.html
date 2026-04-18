@@ -28,7 +28,8 @@ body{background:#0a0a1a;display:flex;flex-direction:column;align-items:center;ju
 <canvas id="gc" width="480" height="520"></canvas>
 <div id="ui">
   <span class="badge" id="lvB">LV 1</span>
-  <span>Round: <b id="rD">1/3</b></span>
+  <span>Shots: <b id="shotD">50</b></span>
+  <span>Target: <b id="tgtD">0/100</b></span>
   <span>Score: <b id="sD">0</b></span>
   <span>Coins: <b id="cD">0</b></span>
   <span id="cmD" style="font-size:13px;font-weight:700"></span>
@@ -48,7 +49,8 @@ body{background:#0a0a1a;display:flex;flex-direction:column;align-items:center;ju
 </div>
 <script>
 const cv=document.getElementById('gc'),ct=cv.getContext('2d');
-const W=480,H=520,GRAV=.065,SPD=7.8,LX=80,RPL=3;
+const W=480,H=520,GRAV=.065,SPD=7.8,LX=80;
+const LV_SHOTS=[50,40,30],LV_TARGET=100;
 const LVS=[
   {n:3,spd:[.006,.009],hit:.74,pts:[5,3,1],miss:3,rise:.016,name:'Level 1 — Easy'},
   {n:4,spd:[.011,.015],hit:.61,pts:[9,5,2],miss:2,rise:.030,name:'Level 2 — Medium'},
@@ -58,7 +60,7 @@ let st='title',frame=0,score=0,coins=0,misses=0,combo=0,maxCombo=0;
 let lava=0,lavaMode=false,shake=0;
 let ball=null,ang=-.78,mx=200,my=200;
 let bells=[],floats=[],parts=[],booms=[];
-let lv=1,rnd=0,celebF=0,won=false;
+let lv=1,shotsLeft=LV_SHOTS[0],levelScore=0,celebF=0,won=false;
 let activeBd='sky',activeTool='ball';
 let owned={bd:['sky'],tool:['ball'],boost:[]},mul=1;
 
@@ -117,6 +119,7 @@ function shoot(){
   if(ball||st!=='aiming')return;
   const m=muzzle();
   ball={x:m.x,y:m.y,vx:Math.cos(ang)*SPD,vy:Math.sin(ang)*SPD};
+  shotsLeft--;
   st='flying';shake=5;burst(m.x,m.y);boomSound();
 }
 function onMiss(){
@@ -134,7 +137,8 @@ function updHUD(){
   document.getElementById('sD').textContent=score;
   document.getElementById('cD').textContent=coins;
   document.getElementById('lvB').textContent='LV '+lv;
-  document.getElementById('rD').textContent=(rnd+1)+'/'+RPL;
+  document.getElementById('shotD').textContent=Math.max(0,shotsLeft);
+  document.getElementById('tgtD').textContent=Math.min(levelScore,LV_TARGET)+'/'+LV_TARGET;
   const cd=document.getElementById('cmD');
   cd.innerHTML=combo>1?`<b style="color:${['#ffcc00','#ff8800','#ff44ff'][Math.min(combo-2,2)]}">x${combo}</b>`:'';
 }
@@ -148,9 +152,8 @@ function update(){
     if(celebF===8)celebSound();
     for(let b of bells){b.ang=Math.sin(celebF*.22)*.44;b.x=b.bx+Math.sin(celebF*.22)*30;}
     if(celebF>210){
-      rnd++;
-      if(rnd>=RPL){if(lv>=3){won=true;st='gameover';}else{lv++;rnd=0;celebF=0;st='levelstart';}}
-      else{lava=0;lavaMode=false;misses=0;ball=null;celebF=0;st='aiming';initBells();}
+      if(lv>=3){won=true;st='gameover';}
+      else{lv++;levelScore=0;shotsLeft=LV_SHOTS[lv-1];celebF=0;st='levelstart';}
     }
     booms=booms.filter(b=>{b.x+=b.vx;b.y+=b.vy;b.vy+=.12;b.life--;return b.life>0;});
     parts=parts.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.1;p.life--;return p.life>0;});
@@ -176,19 +179,21 @@ function update(){
       if(Math.abs(dx)<b.w*c.hit+7&&dy>-8&&dy<b.h+8){
         const zone=dy<b.h*.33?0:dy<b.h*.66?1:2;
         const earned=Math.round(b.pts[zone]*mul);
-        score+=earned;coins+=earned;combo++;maxCombo=Math.max(maxCombo,combo);
+        score+=earned;coins+=earned;levelScore+=earned;combo++;maxCombo=Math.max(maxCombo,combo);
         b.hit=earned;b.hitTimer=34;
         if(lavaMode)lava=Math.max(12,lava-24);
         hitSound();
         floats.push({x:ball.x,y:ball.y-16,text:'+'+earned,life:55,col:['#FF5555','#FFBB00','#55EE55'][zone]});
         if(combo>1)floats.push({x:W/2,y:H*.35,text:'x'+combo+'!',life:44,col:'#FFD700',big:true});
-        sparks(ball.x,ball.y);ball=null;st='aiming';
-        if(bells.every(bb=>bb.hitTimer===0))startCeleb();
+        sparks(ball.x,ball.y);ball=null;
+        if(levelScore>=LV_TARGET){startCeleb();}
+        else if(shotsLeft<=0){st='gameover';}
+        else{st='aiming';if(bells.every(bb=>bb.hitTimer===0))initBells();}
         break;
       }
     }
-    if(ball&&ball.y>=H-lava-5){if(lavaMode)st='gameover';else{onMiss();ball=null;st='aiming';}}
-    if(ball&&(ball.x>W+20||ball.x<-20||ball.y<-40)){onMiss();ball=null;st='aiming';}
+    if(ball&&ball.y>=H-lava-5){if(lavaMode)st='gameover';else{onMiss();ball=null;if(shotsLeft<=0&&levelScore<LV_TARGET)st='gameover';else st='aiming';}}
+    if(ball&&(ball.x>W+20||ball.x<-20||ball.y<-40)){onMiss();ball=null;if(shotsLeft<=0&&levelScore<LV_TARGET)st='gameover';else st='aiming';}
   }
   const c=lc();
   if(lavaMode&&st!=='gameover')lava=Math.min(H-68,lava+c.rise);
@@ -338,17 +343,21 @@ function drawBall(){
 function ovl(a){ct.fillStyle=`rgba(0,0,0,${a})`;ct.fillRect(0,0,W,H);}
 function drawRoundClear(){
   ct.textAlign='center';const p=.65+Math.sin(celebF*.15)*.35;
-  ct.globalAlpha=p;ct.fillStyle='#FFDD00';ct.font='bold 26px sans-serif';ct.fillText('Round Clear!',W/2,H*.38);
-  if(rnd+1>=RPL){ct.fillStyle='#FF88FF';ct.font='bold 20px sans-serif';ct.fillText('Level Complete!',W/2,H*.48);}
+  ct.globalAlpha=p;
+  ct.fillStyle='#FF88FF';ct.font='bold 28px sans-serif';ct.fillText('Level Clear!',W/2,H*.35);
+  ct.fillStyle='#FFDD00';ct.font='bold 20px sans-serif';ct.fillText('100 points reached!',W/2,H*.46);
+  if(lv<3){ct.fillStyle='#88ffcc';ct.font='14px sans-serif';ct.fillText('Next: Level '+(lv+1)+' — '+LV_SHOTS[lv]+' shots',W/2,H*.56);}
   ct.globalAlpha=1;
 }
 function drawLevelStart(){
   ovl(.72);const c=LVS[Math.min(lv-1,2)];ct.textAlign='center';
   const t=Math.min(1,celebF/30);ct.globalAlpha=t;
-  ct.fillStyle='#88FFFF';ct.font='bold 28px sans-serif';ct.fillText(c.name,W/2,H*.38);
+  ct.fillStyle='#88FFFF';ct.font='bold 28px sans-serif';ct.fillText(c.name,W/2,H*.36);
   ct.fillStyle='rgba(255,255,255,.8)';ct.font='14px sans-serif';
-  ct.fillText(`${c.n} bells  •  ${c.miss} misses  •  Tighter aim needed!`,W/2,H*.48);
-  ct.fillStyle='#FFD700';ct.font='bold 13px sans-serif';ct.fillText('Get ready...',W/2,H*.58);
+  ct.fillText(`${c.n} bells  •  Score 100 points to advance`,W/2,H*.46);
+  ct.fillStyle='#FFD700';ct.font='bold 14px sans-serif';
+  ct.fillText(LV_SHOTS[lv-1]+' shots to reach the target!',W/2,H*.55);
+  ct.fillStyle='rgba(255,255,255,.6)';ct.font='bold 13px sans-serif';ct.fillText('Get ready...',W/2,H*.64);
   ct.globalAlpha=1;
 }
 function drawTitle(){
@@ -357,18 +366,21 @@ function drawTitle(){
   ct.fillStyle='#ffcc00';ct.font='bold 22px sans-serif';ct.fillText('in Lava',W/2,196);
   ct.fillStyle='rgba(255,255,255,.5)';ct.font='12px sans-serif';ct.fillText('A game by Manya',W/2,218);
   ct.fillStyle='rgba(255,255,255,.85)';ct.font='13px sans-serif';
-  ['Aim the tank barrel with your mouse','Click to SHOOT  •  Tap again = BOOST UP!','Miss too much = LAVA MODE = instant death!','3 levels — each harder than the last'].forEach((t,i)=>ct.fillText(t,W/2,256+i*20));
+  ['Aim the tank barrel with your mouse','Click to SHOOT  •  Tap again = BOOST UP!','Score 100 pts per level before shots run out!','3 levels: 50 → 40 → 30 shots each'].forEach((t,i)=>ct.fillText(t,W/2,256+i*20));
   ct.fillStyle='rgba(255,200,50,.9)';ct.font='bold 17px sans-serif';ct.fillText('Tap anywhere to start!',W/2,368);
   ct.fillStyle='#ff3300';ct.fillRect(0,H-28,W,28);
   ct.strokeStyle='#ff6600';ct.lineWidth=2;ct.beginPath();
   for(let x=0;x<W;x+=4)ct.lineTo(x,H-28+Math.sin((x+frame*3)*.1)*5);ct.stroke();
 }
 function drawGameOver(){
+  const shotOut=!won&&shotsLeft<=0&&!lavaMode;
   ovl(.75);ct.textAlign='center';
-  ct.fillStyle=won?'#FFD700':'#ff4400';ct.font='bold 28px sans-serif';ct.fillText(won?'YOU WIN!!!':'Drowned in lava!',W/2,196);
-  ct.fillStyle='#ffcc00';ct.font='20px sans-serif';ct.fillText('Score: '+score,W/2,236);
-  ct.fillStyle='#aaffcc';ct.font='15px sans-serif';ct.fillText('Best combo: x'+maxCombo,W/2,260);
-  ct.fillStyle='rgba(180,180,255,.9)';ct.font='bold 15px sans-serif';ct.fillText('Tap to play again',W/2,308);
+  ct.fillStyle=won?'#FFD700':shotOut?'#ff8800':'#ff4400';ct.font='bold 28px sans-serif';
+  ct.fillText(won?'YOU WIN!!!':shotOut?'Out of shots!':'Drowned in lava!',W/2,186);
+  if(!won){ct.fillStyle='rgba(255,255,255,.7)';ct.font='14px sans-serif';ct.fillText('Level '+lv+': '+Math.min(levelScore,LV_TARGET)+'/100 points',W/2,218);}
+  ct.fillStyle='#ffcc00';ct.font='20px sans-serif';ct.fillText('Total Score: '+score,W/2,244);
+  ct.fillStyle='#aaffcc';ct.font='15px sans-serif';ct.fillText('Best combo: x'+maxCombo,W/2,268);
+  ct.fillStyle='rgba(180,180,255,.9)';ct.font='bold 15px sans-serif';ct.fillText('Tap to play again',W/2,316);
 }
 
 function render(){
@@ -399,7 +411,7 @@ function loop(){requestAnimationFrame(loop);update();render();}
 
 function resetGame(){
   score=0;coins=0;misses=0;combo=0;maxCombo=0;lava=0;lavaMode=false;shake=0;frame=0;mul=1;won=false;
-  ball=null;lv=1;rnd=0;celebF=0;
+  ball=null;lv=1;shotsLeft=LV_SHOTS[0];levelScore=0;celebF=0;
   owned={bd:['sky'],tool:['ball'],boost:[]};activeBd='sky';activeTool='ball';
   floats=[];parts=[];booms=[];bells=[];st='aiming';initBells();
 }

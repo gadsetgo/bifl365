@@ -21,6 +21,7 @@ const patchSchema = z.object({
   scoring_provider: z.enum(['gemini', 'claude', 'ollama', 'none']).optional(),
   content_provider: z.enum(['gemini', 'claude', 'ollama', 'none']).optional(),
   max_image_candidates: z.number().int().min(1).max(20).optional(),
+  games_enabled: z.boolean().optional(),
 });
 
 export async function GET() {
@@ -42,7 +43,9 @@ export async function PATCH(request: Request) {
   }
 
   const config = JSON.parse(readFileSync(configPath, 'utf-8'));
-  config.pipeline = { ...config.pipeline, ...parsed.data };
+  const { games_enabled, ...pipelineFields } = parsed.data;
+  if (games_enabled !== undefined) config.games_enabled = games_enabled;
+  config.pipeline = { ...config.pipeline, ...pipelineFields };
   writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
 
   return NextResponse.json(config);

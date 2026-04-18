@@ -12,10 +12,12 @@ function HeaderInner() {
   const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [gamesDropdownOpen, setGamesDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
 
+  const isGamesPage = pathname.startsWith('/games');
   const categoryParam = searchParams.get('category') || 'all';
   const awardParam = searchParams.get('award') || 'all';
   const timeParam = searchParams.get('time') || 'all';
@@ -65,96 +67,154 @@ function HeaderInner() {
         <div className="flex items-center justify-between h-14">
 
           {/* Logo */}
-          <Link href="/" id="header-logo" className="flex items-center gap-3 group shrink-0">
+          <Link href={isGamesPage ? "/games" : "/"} id="header-logo" className="flex items-center gap-3 group shrink-0">
             <div className="flex flex-col leading-none">
               <span className="font-serif font-black text-xl text-ink tracking-tight group-hover:text-orange transition-colors duration-150">
                 BIFL<span className="text-orange group-hover:text-ink">365</span>
               </span>
+              {isGamesPage && (
+                <span className="text-2xs font-sans font-semibold text-orange tracking-[0.1em]">
+                  Games
+                </span>
+              )}
             </div>
-            <div className="hidden sm:block h-5 w-px bg-charcoal-200" />
-            <span className="hidden sm:block text-2xs font-sans uppercase tracking-[0.15em] text-charcoal-400">
-              Built to Last
-            </span>
+            {!isGamesPage && (
+              <>
+                <div className="hidden sm:block h-5 w-px bg-charcoal-200" />
+                <span className="hidden sm:block text-2xs font-sans uppercase tracking-[0.15em] text-charcoal-400">
+                  Built to Last
+                </span>
+              </>
+            )}
           </Link>
 
           {/* Right cluster */}
           <nav className="flex items-center gap-2" aria-label="Main navigation">
 
-            {/* ── DESKTOP ── */}
-            <div className="hidden lg:flex items-center gap-3">
-              <form onSubmit={handleSearch}>
-                <div className="relative">
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search..."
-                    className="h-9 px-3 pr-8 text-xs font-sans border border-charcoal bg-paper focus:outline-none focus:border-orange w-40"
-                  />
-                  <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 text-charcoal-400">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </button>
-                </div>
-              </form>
-
-              <div className="flex gap-2 border-l border-ghost pl-3">
-                <div className={selectWrapper} title="Filter by Category">
-                  <select value={categoryParam} onChange={(e) => updateFilter('category', e.target.value)} className={dropdownClass}>
-                    {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                  </select>
-                  {caretIcon}
-                </div>
-                <div className={selectWrapper} title="Filter by Award">
-                  <select value={awardParam} onChange={(e) => updateFilter('award', e.target.value)} className={dropdownClass}>
-                    <option value="all">All Awards</option>
-                    <option value="value_buy">Value Buy</option>
-                    <option value="current_star">Current Star</option>
-                    <option value="forever_pick">Forever Pick</option>
-                    <option value="hidden_gem">Hidden Gem</option>
-                  </select>
-                  {caretIcon}
-                </div>
-                <div className={selectWrapper} title="Filter by Time">
-                  <select value={timeParam} onChange={(e) => updateFilter('time', e.target.value)} className={dropdownClass}>
-                    <option value="all">All Time</option>
-                    <option value="this_week">This Week</option>
-                    <option value="previous_weeks">Previous Weeks</option>
-                  </select>
-                  {caretIcon}
-                </div>
+            {isGamesPage ? (
+              // Games page header
+              <div className="hidden lg:relative">
+                <button
+                  onClick={() => setGamesDropdownOpen(!gamesDropdownOpen)}
+                  className="h-9 px-4 text-xs font-sans font-semibold border border-charcoal bg-paper hover:bg-paper-dark transition-colors flex items-center gap-2"
+                >
+                  Menu {gamesDropdownOpen ? '▲' : '▼'}
+                </button>
+                {gamesDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-paper border border-charcoal shadow-lg z-50">
+                    <Link
+                      href="/games"
+                      className="block px-4 py-3 text-xs font-sans hover:bg-paper-dark transition-colors border-b border-ghost"
+                      onClick={() => setGamesDropdownOpen(false)}
+                    >
+                      All Games
+                    </Link>
+                    <Link
+                      href="/games"
+                      className="block px-4 py-3 text-xs font-sans hover:bg-paper-dark transition-colors border-b border-ghost"
+                      onClick={() => setGamesDropdownOpen(false)}
+                    >
+                      Games for Preteens
+                    </Link>
+                    <Link
+                      href="/games"
+                      className="block px-4 py-3 text-xs font-sans hover:bg-paper-dark transition-colors"
+                      onClick={() => setGamesDropdownOpen(false)}
+                    >
+                      Games for Teens
+                    </Link>
+                    <Link
+                      href="/"
+                      className="block px-4 py-3 text-xs font-sans hover:bg-paper-dark transition-colors border-t border-ghost"
+                      onClick={() => setGamesDropdownOpen(false)}
+                    >
+                      Back to BIFL365
+                    </Link>
+                  </div>
+                )}
               </div>
-            </div>
+            ) : (
+              // Regular BIFL page header
+              <>
+                {/* ── DESKTOP ── */}
+                <div className="hidden lg:flex items-center gap-3">
+                  <form onSubmit={handleSearch}>
+                    <div className="relative">
+                      <input
+                        ref={searchInputRef}
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search..."
+                        className="h-9 px-3 pr-8 text-xs font-sans border border-charcoal bg-paper focus:outline-none focus:border-orange w-40"
+                      />
+                      <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 text-charcoal-400">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </form>
 
-            {/* Blog — desktop bordered button */}
-            <Link
-              href="/blog"
-              className="hidden lg:inline-flex items-center h-9 px-3 text-xs font-sans font-semibold border border-charcoal bg-paper hover:bg-paper-dark transition-colors"
-            >
-              Blog
-            </Link>
+                  <div className="flex gap-2 border-l border-ghost pl-3">
+                    <div className={selectWrapper} title="Filter by Category">
+                      <select value={categoryParam} onChange={(e) => updateFilter('category', e.target.value)} className={dropdownClass}>
+                        {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                      </select>
+                      {caretIcon}
+                    </div>
+                    <div className={selectWrapper} title="Filter by Award">
+                      <select value={awardParam} onChange={(e) => updateFilter('award', e.target.value)} className={dropdownClass}>
+                        <option value="all">All Awards</option>
+                        <option value="value_buy">Value Buy</option>
+                        <option value="current_star">Current Star</option>
+                        <option value="forever_pick">Forever Pick</option>
+                        <option value="hidden_gem">Hidden Gem</option>
+                      </select>
+                      {caretIcon}
+                    </div>
+                    <div className={selectWrapper} title="Filter by Time">
+                      <select value={timeParam} onChange={(e) => updateFilter('time', e.target.value)} className={dropdownClass}>
+                        <option value="all">All Time</option>
+                        <option value="this_week">This Week</option>
+                        <option value="previous_weeks">Previous Weeks</option>
+                      </select>
+                      {caretIcon}
+                    </div>
+                  </div>
+                </div>
 
-            {/* Weekly CTA — desktop only */}
-            <Link
-              href="/weekly-pick"
-              className="hidden lg:flex btn-primary text-xs h-9 px-4 items-center shrink-0"
-              style={{ boxShadow: '2px 2px 0px 0px rgba(0,0,0,0.1)' }}
-            >
-              This Week ◆
-            </Link>
+                {/* Blog — desktop bordered button */}
+                <Link
+                  href="/blog"
+                  className="hidden lg:inline-flex items-center h-9 px-3 text-xs font-sans font-semibold border border-charcoal bg-paper hover:bg-paper-dark transition-colors"
+                >
+                  Blog
+                </Link>
 
-            {/* ── MOBILE ── search icon */}
-            <button
-              onClick={openMobileSearch}
-              className="lg:hidden h-9 w-9 flex items-center justify-center border border-charcoal bg-paper hover:bg-paper-dark transition-colors"
-              aria-label="Search"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </button>
+                {/* Weekly CTA — desktop only */}
+                <Link
+                  href="/weekly-pick"
+                  className="hidden lg:flex btn-primary text-xs h-9 px-4 items-center shrink-0"
+                  style={{ boxShadow: '2px 2px 0px 0px rgba(0,0,0,0.1)' }}
+                >
+                  This Week ◆
+                </Link>
+              </>
+            )}
+
+            {/* ── MOBILE ── search icon (only on BIFL pages) */}
+            {!isGamesPage && (
+              <button
+                onClick={openMobileSearch}
+                className="lg:hidden h-9 w-9 flex items-center justify-center border border-charcoal bg-paper hover:bg-paper-dark transition-colors"
+                aria-label="Search"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+            )}
 
             {/* MOBILE — hamburger toggle */}
             <button
@@ -211,66 +271,103 @@ function HeaderInner() {
       {/* Mobile hamburger panel */}
       {hamburgerOpen && (
         <div className="lg:hidden border-b border-charcoal bg-paper shadow-inner">
-          {/* Nav links: This Week + Blog */}
-          <div className="grid grid-cols-2 gap-2 px-4 pt-4 pb-3">
-            <Link
-              href="/weekly-pick"
-              onClick={() => setHamburgerOpen(false)}
-              className="btn-primary text-xs h-10 flex items-center justify-center font-bold"
-              style={{ boxShadow: '2px 2px 0px 0px rgba(0,0,0,0.1)' }}
-            >
-              This Week ◆
-            </Link>
-            <Link
-              href="/blog"
-              onClick={() => setHamburgerOpen(false)}
-              className="h-10 flex items-center justify-center text-xs font-sans font-semibold border border-charcoal bg-paper hover:bg-paper-dark transition-colors"
-            >
-              Blog
-            </Link>
-          </div>
-
-          {/* Collapsible filters */}
-          <div className="border-t border-ghost">
-            <button
-              onClick={() => setFiltersOpen(!filtersOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-sans font-bold uppercase tracking-widest text-charcoal-400 hover:text-ink hover:bg-paper-dark transition-colors"
-            >
-              <span>Filter Products</span>
-              <span className="text-[10px]">{filtersOpen ? '▲' : '▼'}</span>
-            </button>
-
-            {filtersOpen && (
-              <div className="px-4 pb-4 bg-paper-dark space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className={selectWrapper + ' w-full'}>
-                    <select value={categoryParam} onChange={(e) => updateFilter('category', e.target.value)} className={`${dropdownClass} w-full h-10`}>
-                      {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                    </select>
-                    {caretIcon}
-                  </div>
-                  <div className={selectWrapper + ' w-full'}>
-                    <select value={awardParam} onChange={(e) => updateFilter('award', e.target.value)} className={`${dropdownClass} w-full h-10`}>
-                      <option value="all">Award: All</option>
-                      <option value="value_buy">Value Buy</option>
-                      <option value="current_star">Current Star</option>
-                      <option value="forever_pick">Forever Pick</option>
-                      <option value="hidden_gem">Hidden Gem</option>
-                    </select>
-                    {caretIcon}
-                  </div>
-                </div>
-                <div className={selectWrapper + ' w-full'}>
-                  <select value={timeParam} onChange={(e) => updateFilter('time', e.target.value)} className={`${dropdownClass} w-full h-10`}>
-                    <option value="all">Time: All</option>
-                    <option value="this_week">This Week Only</option>
-                    <option value="previous_weeks">Previous Weeks</option>
-                  </select>
-                  {caretIcon}
-                </div>
+          {isGamesPage ? (
+            // Games mobile menu
+            <div className="px-4 py-4 space-y-2">
+              <Link
+                href="/games"
+                onClick={() => setHamburgerOpen(false)}
+                className="block px-4 py-3 text-xs font-sans hover:bg-paper-dark transition-colors text-charcoal rounded border border-charcoal"
+              >
+                All Games
+              </Link>
+              <Link
+                href="/games"
+                onClick={() => setHamburgerOpen(false)}
+                className="block px-4 py-3 text-xs font-sans hover:bg-paper-dark transition-colors text-charcoal rounded border border-charcoal"
+              >
+                Games for Preteens
+              </Link>
+              <Link
+                href="/games"
+                onClick={() => setHamburgerOpen(false)}
+                className="block px-4 py-3 text-xs font-sans hover:bg-paper-dark transition-colors text-charcoal rounded border border-charcoal"
+              >
+                Games for Teens
+              </Link>
+              <Link
+                href="/"
+                onClick={() => setHamburgerOpen(false)}
+                className="block px-4 py-3 text-xs font-sans hover:bg-paper-dark transition-colors text-charcoal rounded border border-charcoal border-t-2 mt-2 pt-3"
+              >
+                Back to BIFL365
+              </Link>
+            </div>
+          ) : (
+            // Regular BIFL mobile menu
+            <>
+              {/* Nav links: This Week + Blog */}
+              <div className="grid grid-cols-2 gap-2 px-4 pt-4 pb-3">
+                <Link
+                  href="/weekly-pick"
+                  onClick={() => setHamburgerOpen(false)}
+                  className="btn-primary text-xs h-10 flex items-center justify-center font-bold"
+                  style={{ boxShadow: '2px 2px 0px 0px rgba(0,0,0,0.1)' }}
+                >
+                  This Week ◆
+                </Link>
+                <Link
+                  href="/blog"
+                  onClick={() => setHamburgerOpen(false)}
+                  className="h-10 flex items-center justify-center text-xs font-sans font-semibold border border-charcoal bg-paper hover:bg-paper-dark transition-colors"
+                >
+                  Blog
+                </Link>
               </div>
-            )}
-          </div>
+
+              {/* Collapsible filters */}
+              <div className="border-t border-ghost">
+                <button
+                  onClick={() => setFiltersOpen(!filtersOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-sans font-bold uppercase tracking-widest text-charcoal-400 hover:text-ink hover:bg-paper-dark transition-colors"
+                >
+                  <span>Filter Products</span>
+                  <span className="text-[10px]">{filtersOpen ? '▲' : '▼'}</span>
+                </button>
+
+                {filtersOpen && (
+                  <div className="px-4 pb-4 bg-paper-dark space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className={selectWrapper + ' w-full'}>
+                        <select value={categoryParam} onChange={(e) => updateFilter('category', e.target.value)} className={`${dropdownClass} w-full h-10`}>
+                          {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                        </select>
+                        {caretIcon}
+                      </div>
+                      <div className={selectWrapper + ' w-full'}>
+                        <select value={awardParam} onChange={(e) => updateFilter('award', e.target.value)} className={`${dropdownClass} w-full h-10`}>
+                          <option value="all">Award: All</option>
+                          <option value="value_buy">Value Buy</option>
+                          <option value="current_star">Current Star</option>
+                          <option value="forever_pick">Forever Pick</option>
+                          <option value="hidden_gem">Hidden Gem</option>
+                        </select>
+                        {caretIcon}
+                      </div>
+                    </div>
+                    <div className={selectWrapper + ' w-full'}>
+                      <select value={timeParam} onChange={(e) => updateFilter('time', e.target.value)} className={`${dropdownClass} w-full h-10`}>
+                        <option value="all">Time: All</option>
+                        <option value="this_week">This Week Only</option>
+                        <option value="previous_weeks">Previous Weeks</option>
+                      </select>
+                      {caretIcon}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
     </header>

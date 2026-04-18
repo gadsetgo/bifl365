@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Time-Loop Detective</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=IM+Fell+English:ital@0;1&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#07080f;color:#cfc8b4;font-family:'IM Fell English',serif;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden;}
+a{color:inherit;}
+
+/* ── HEADER ── */
+#hdr{background:#07080f;border-bottom:1px solid #1a1d2e;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.htitle{font-family:'Playfair Display',serif;font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#5a6080;}
+#clock{font-family:'Courier Prime',monospace;font-size:22px;font-weight:700;color:#c9a04c;text-shadow:0 0 12px #7a5010;}
+.loop-tag{background:#110f1e;border:1px solid #2e204a;color:#7058a0;padding:3px 12px;border-radius:2px;font-family:'Courier Prime',monospace;font-size:11px;letter-spacing:2px;}
+
+/* ── TIME BAR ── */
+#tbar-wrap{background:#07080f;padding:0 20px 8px;border-bottom:1px solid #12141e;}
+#tbar{height:2px;background:#12141e;border-radius:1px;position:relative;margin-top:4px;}
+#tfill{height:100%;background:#c9a04c;transition:width .6s ease;border-radius:1px;}
+.tlabels{display:flex;justify-content:space-between;font-size:9px;color:#30354a;font-family:'Courier Prime',monospace;margin-top:3px;}
+
+/* ── MAIN LAYOUT ── */
+#wrap{display:flex;flex:1;min-height:0;}
+#main{flex:1;padding:18px 16px;display:flex;flex-direction:column;gap:12px;min-width:0;max-width:700px;}
+#sidebar{width:230px;min-width:230px;background:#06070d;border-left:1px solid #12141e;padding:14px;overflow-y:auto;}
+
+/* ── LOCATION ── */
+#loc-panel{background:#0b0d17;border:1px solid #1a1d2e;border-radius:4px;padding:18px;}
+.loc-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.loc-icon{font-size:16px;opacity:.6;}
+.loc-name{font-family:'Courier Prime',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#5a7090;}
+.weather-tag{margin-left:auto;font-size:10px;color:#3a4258;font-style:italic;}
+#loc-desc{font-size:14.5px;line-height:1.85;color:#b8b09a;}
+.npc-line{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:#687870;font-style:italic;}
+.dot{width:5px;height:5px;border-radius:50%;background:#3a7a5a;display:inline-block;flex-shrink:0;}
+
+/* ── ACTIONS ── */
+#act-panel{}
+.sec-lbl{font-family:'Courier Prime',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#30354a;margin-bottom:7px;}
+.act-grid{display:flex;flex-direction:column;gap:5px;}
+.abtn{background:transparent;border:1px solid #1c2030;color:#a09880;padding:8px 14px;border-radius:2px;font-size:13px;cursor:pointer;font-family:'IM Fell English',serif;text-align:left;transition:all .18s;width:100%;}
+.abtn:hover{border-color:#3a4a60;background:#0f1120;color:#c8c0a0;}
+.abtn.talk{border-color:#1c2a38;color:#7aA0b8;}
+.abtn.talk:hover{border-color:#3a6080;background:#0a1520;color:#9ac0d8;}
+.abtn.examine{border-color:#1c2a20;color:#7aA080;}
+.abtn.examine:hover{border-color:#3a6050;background:#0a1510;color:#9ac0a0;}
+.abtn.accuse{border-color:#2a1c1c;color:#b87878;}
+.abtn.accuse:hover{border-color:#6a3030;background:#150a0a;color:#d09090;}
+.abtn.move{border-color:#181e2c;color:#808898;}
+.abtn.move:hover{border-color:#303848;background:#0d1018;color:#a0a8b0;}
+.abtn:disabled{opacity:.35;cursor:not-allowed;}
+.abtn.locked{color:#503a28;border-color:#1c1610;}
+
+/* ── MESSAGE LOG ── */
+#log-wrap{background:#060810;border:1px solid #10121e;border-radius:3px;padding:14px;max-height:180px;overflow-y:auto;flex-shrink:0;}
+#log{display:flex;flex-direction:column;gap:8px;}
+.msg{font-size:13.5px;line-height:1.75;color:#908870;}
+.msg.clue{color:#c9a04c;border-left:2px solid #907030;padding-left:10px;background:#0a0900;}
+.msg.talk{color:#7aA0b8;border-left:2px solid #3a5878;padding-left:10px;}
+.msg.sys{color:#5a4a70;font-style:italic;font-size:12.5px;}
+.msg.warn{color:#c07878;}
+.msg.narr{color:#a09880;}
+
+/* ── SIDEBAR ── */
+.sb-title{font-family:'Courier Prime',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#30354a;padding-bottom:8px;border-bottom:1px solid #12141e;margin-bottom:10px;}
+.clue-card{background:#0b0c14;border:1px solid #1a1d28;border-radius:3px;padding:9px 10px;margin-bottom:7px;cursor:default;}
+.clue-card:hover{border-color:#2a2d3e;}
+.clue-title{font-family:'Courier Prime',monospace;font-size:10px;color:#c9a04c;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+.clue-body{font-size:11.5px;color:#706858;line-height:1.55;}
+.no-clue{font-size:12px;color:#252830;font-style:italic;}
+.sb-divider{border:none;border-top:1px solid #10121e;margin:12px 0;}
+.knowledge-item{font-size:11.5px;color:#404860;line-height:1.6;margin-bottom:6px;padding-left:8px;border-left:1px solid #20243a;}
+
+/* ── DIALOGUE MODAL ── */
+#dlg-overlay{display:none;position:fixed;inset:0;background:rgba(4,5,10,.9);z-index:100;align-items:center;justify-content:center;}
+#dlg-overlay.open{display:flex;}
+.dlg-box{background:#0c0f1c;border:1px solid #252d4a;border-radius:5px;padding:26px;max-width:500px;width:92%;max-height:80vh;overflow-y:auto;}
+.dlg-npc{font-family:'Courier Prime',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#5a7a98;margin-bottom:10px;}
+.dlg-text{font-size:15px;line-height:1.85;color:#c0b89a;margin-bottom:18px;}
+.dlg-opts{display:flex;flex-direction:column;gap:7px;}
+.dopt{background:transparent;border:1px solid #202840;color:#7a98b8;padding:9px 14px;border-radius:2px;font-size:13px;cursor:pointer;font-family:'IM Fell English',serif;text-align:left;transition:all .18s;}
+.dopt:hover{border-color:#405878;background:#0e1828;color:#9ab8d0;}
+.dopt.close{color:#505868;border-color:#181e28;}
+.dopt.close:hover{color:#707888;border-color:#2a303e;}
+
+/* ── LOOP SCREEN ── */
+#loop-screen{display:none;position:fixed;inset:0;background:#030408;z-index:200;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;}
+#loop-screen.open{display:flex;}
+.ls-title{font-family:'Playfair Display',serif;font-size:36px;color:#7050a0;letter-spacing:4px;margin-bottom:6px;animation:fadein 1.5s ease;}
+.ls-sub{font-family:'Courier Prime',monospace;font-size:11px;letter-spacing:4px;color:#30304a;text-transform:uppercase;margin-bottom:28px;animation:fadein 2s ease;}
+.ls-body{background:#080a10;border:1px solid #1e1428;border-radius:4px;padding:20px;max-width:440px;font-size:14px;color:#60586a;line-height:1.8;margin-bottom:24px;animation:fadein 2.5s ease;}
+.ls-btn{background:#110e1e;border:1px solid #3d2d5a;color:#7050a0;padding:12px 30px;border-radius:3px;font-size:14px;cursor:pointer;font-family:'IM Fell English',serif;letter-spacing:1px;transition:all .2s;animation:fadein 3s ease;}
+.ls-btn:hover{background:#1c1830;border-color:#6040a0;}
+
+/* ── WIN SCREEN ── */
+#win-screen{display:none;position:fixed;inset:0;background:#030408;z-index:200;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;}
+#win-screen.open{display:flex;}
+.ws-eyebrow{font-family:'Courier Prime',monospace;font-size:10px;letter-spacing:4px;color:#40502a;text-transform:uppercase;margin-bottom:12px;}
+.ws-title{font-family:'Playfair Display',serif;font-size:38px;color:#c9a04c;letter-spacing:2px;margin-bottom:8px;}
+.ws-sub{font-size:15px;color:#706858;font-style:italic;margin-bottom:28px;}
+.ws-verdict{background:#090b10;border:1px solid #2a2010;border-radius:4px;padding:22px;max-width:520px;font-size:14.5px;color:#a09070;line-height:1.85;margin-bottom:24px;text-align:left;}
+.ws-verdict strong{color:#c9a04c;font-weight:normal;}
+.ws-again{background:transparent;border:1px solid #30281a;color:#806840;padding:10px 24px;border-radius:3px;font-family:'IM Fell English',serif;font-size:14px;cursor:pointer;transition:all .2s;margin-top:8px;}
+.ws-again:hover{border-color:#605030;color:#a09060;}
+
+/* ── INTRO SCREEN ── */
+#intro{position:fixed;inset:0;background:#030408;z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;}
+.intro-pre{font-family:'Courier Prime',monospace;font-size:10px;letter-spacing:4px;color:#30354a;text-transform:uppercase;margin-bottom:16px;}
+.intro-title{font-family:'Playfair Display',serif;font-size:42px;color:#c0b080;letter-spacing:2px;margin-bottom:6px;}
+.intro-sub{font-family:'Playfair Display',serif;font-size:18px;color:#5a6080;font-style:italic;margin-bottom:32px;}
+.intro-body{max-width:480px;font-size:14.5px;line-height:1.9;color:#706858;margin-bottom:12px;}
+.intro-hint{max-width:480px;font-size:12px;line-height:1.8;color:#40455a;margin-bottom:28px;border-top:1px solid #12141e;padding-top:14px;}
+.intro-btn{background:#0e1020;border:1px solid #3a3010;color:#c9a04c;padding:14px 36px;border-radius:3px;font-size:15px;cursor:pointer;font-family:'IM Fell English',serif;letter-spacing:1px;transition:all .2s;}
+.intro-btn:hover{background:#181408;border-color:#706030;}
+
+/* ── CONFRONT SCREEN ── */
+#confront{display:none;position:fixed;inset:0;background:#030408;z-index:200;flex-direction:column;align-items:center;justify-content:center;padding:30px;overflow-y:auto;}
+#confront.open{display:flex;}
+.cf-title{font-family:'Playfair Display',serif;font-size:24px;color:#c0a060;letter-spacing:2px;margin-bottom:6px;text-align:center;}
+.cf-sub{font-size:12px;color:#40465a;font-style:italic;margin-bottom:24px;text-align:center;font-family:'Courier Prime',monospace;letter-spacing:2px;}
+.cf-scene{background:#080b12;border:1px solid #1e2238;border-radius:4px;padding:20px;max-width:520px;width:100%;font-size:14.5px;line-height:1.9;color:#b0a888;margin-bottom:18px;}
+.cf-scene em{color:#c9a04c;font-style:normal;}
+.cf-opts{display:flex;flex-direction:column;gap:7px;max-width:520px;width:100%;}
+
+@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes flicker{0%,100%{opacity:1}50%{opacity:.85}}
+#clock{animation:flicker 4s ease-in-out infinite;}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:#06070d;}
+::-webkit-scrollbar-thumb{background:#1e2030;}
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div id="intro">
+  <div class="intro-pre">Ashford Mill — October 14th</div>
+  <div class="intro-title">Time-Loop Detective</div>
+  <div class="intro-sub">A Murder. A Town. The Same Day. Again.</div>
+  <p class="intro-body">Edward Marsh will be found dead at midnight. You have relived this day before. You will relive it again — until you find the truth.<br><br>Every loop resets the town, but not your memory. Every loop is another chance to gather evidence, interrogate suspects, and catch a killer.</p>
+  <p class="intro-hint">Move between locations. Examine objects. Speak with townsfolk. Collect clues. When you know enough — make your accusation.<br>Each action advances time by 30 minutes. The loop ends at midnight.</p>
+  <button class="intro-btn" onclick="startGame()">Begin the Loop</button>
+</div>
+
+<!-- HEADER -->
+<div id="hdr">
+  <div class="htitle">Time-Loop Detective</div>
+  <div id="clock">6:00 AM</div>
+  <div class="loop-tag" id="loop-tag">LOOP 01</div>
+</div>
+<div id="tbar-wrap">
+  <div id="tbar"><div id="tfill" style="width:0%"></div></div>
+  <div class="tlabels"><span>6 AM</span><span>9 AM</span><span>12 PM</span><span>3 PM</span><span>6 PM</span><span>9 PM</span><span>12 AM</span></div>
+</div>
+
+<!-- MAIN -->
+<div id="wrap">
+  <div id="main">
+    <div id="loc-panel">
+      <div class="loc-header">
+        <span class="loc-icon" id="loc-icon">⌂</span>
+        <span class="loc-name" id="loc-name">Town Streets</span>
+        <span class="weather-tag" id="weather-tag">overcast</span>
+      </div>
+      <div id="loc-desc">Loading...</div>
+      <div id="npc-presence"></div>
+    </div>
+    <div id="act-panel">
+      <div class="sec-lbl">Actions</div>
+      <div class="act-grid" id="actions"></div>
+    </div>
+    <div id="log-wrap">
+      <div id="log"></div>
+    </div>
+  </div>
+  <div id="sidebar">
+    <div class="sb-title">Evidence Collected</div>
+    <div id="clue-list"><div class="no-clue">Nothing yet. Begin your investigation.</div></div>
+    <hr class="sb-divider" id="kb-divider" style="display:none">
+    <div class="sb-title" id="kb-label" style="display:none">Known Information</div>
+    <div id="knowledge-list"></div>
+  </div>
+</div>
+
+<!-- DIALOGUE MODAL -->
+<div id="dlg-overlay">
+  <div class="dlg-box">
+    <div class="dlg-npc" id="dlg-npc"></div>
+    <div class="dlg-text" id="dlg-text"></div>
+    <div class="dlg-opts" id="dlg-opts"></div>
+  </div>
+</div>
+
+<!-- LOOP SCREEN -->
+<div id="loop-screen">
+  <div class="ls-title">Midnight.</div>
+  <div class="ls-sub">The Loop Resets</div>
+  <div class="ls-body" id="ls-body"></div>
+  <button class="ls-btn" id="ls-btn">Wake Again at Dawn</button>
+</div>
+
+<!-- WIN SCREEN -->
+<div id="win-screen">
+  <div class="ws-eyebrow">Case Closed — Loop Complete</div>
+  <div class="ws-title">You Solved It.</div>
+  <div class="ws-sub" id="ws-sub"></div>
+  <div class="ws-verdict" id="ws-verdict"></div>
+  <button class="ws-again" onclick="hardReset()">Begin Again (New Game)</button>
+</div>
+
+<!-- CONFRONT SCREEN -->
+<div id="confront">
+  <div class="cf-title">The Confrontation</div>
+  <div class="cf-sub">ASHFORD MILL POLICE STATION</div>
+  <div class="cf-scene" id="cf-scene"></div>
+  <div class="cf-opts" id="cf-opts"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// GAME DATA
+// ═══════════════════════════════════════════════
+
+const CLUES = {
+  diary:          { name:"Edward's Diary",       short:"Diary",          desc:"Oct 13th entry: 'I told Dale I have proof of what he did in 2002. He looked at me like I was already a dead man. I should have stayed quiet.'" },
+  safe_combo:     { name:"Safe Combination",     short:"Safe Combo",     desc:"Inside 'Town Accounts 1998-2004' at the library: 47-12-33. The same page shows $50,000 redirected to a private account — in the Sheriff's hand." },
+  insurance:      { name:"Insurance Policy",     short:"Insurance",      desc:"Life policy: Edward Marsh, $200,000. Beneficiary: Rose Marsh. Policy doubled two months ago. Rose signed as agent." },
+  desk_key:       { name:"Brass Desk Key",       short:"Desk Key",       desc:"Small brass key found taped under the coffee machine at the police station. Labeled 'BD' in black marker — Briggs' Desk." },
+  ledger:         { name:"Financial Ledger",     short:"Ledger",         desc:"Town fund accounts in the Sheriff's own handwriting. Three withdrawals totaling $50,000 in 2002–03. Edward Marsh's name is circled in red — a witness to the fraud." },
+  poison_vial:    { name:"Aconitine Vial",       short:"Poison Vial",    desc:"A near-empty vial: 'Aconitine Extract.' Tasteless. Causes cardiac arrest within 4–6 hours. Found in Briggs' locked desk drawer." },
+  glass_residue:  { name:"Glass with Residue",   short:"Glass Residue",  desc:"Edward's whiskey glass, still on the diner table. An oily film coats the inside. The bartender confirms only Edward — and anyone behind the counter — touched it." },
+  clara_testimony:{ name:"Clara's Testimony",    short:"Clara's Account",desc:"Clara Noon: 'Sheriff Briggs went behind my counter around 7:30. Said he needed sugar. We keep sugar on the tables. He was back there two minutes. I should have said something.'" },
+  victor_note:    { name:"Threatening Note",     short:"Victor's Note",  desc:"In Victor Hale's desk, in Edward Marsh's handwriting: 'Pay what you owe by Friday or I tell the board about your credentials. — E.M.' Dated three weeks ago." },
+  rose_warning:   { name:"Rose's Account",       short:"Rose's Warning", desc:"Rose Marsh: 'Edward told me last week that Briggs threatened him. Said he told Edward that accidents happen to people who can't keep quiet. Edward was frightened. I've never seen him frightened before.'" }
+};
+
+const KEY_EVIDENCE = ['diary','ledger','poison_vial','clara_testimony','glass_residue'];
+
+// NPC schedules: [{from, to, loc}] (minutes from 6AM)
+const NPCS = {
+  dale:   { name:"Sheriff Dale Briggs",  title:"Sheriff",         color:"#b87858" },
+  clara:  { name:"Clara Noon",           title:"Diner Owner",     color:"#7aA080" },
+  victor: { name:"Victor Hale",          title:"Town Librarian",  color:"#7090b8" },
+  rose:   { name:"Rose Marsh",           title:"Edward's Wife",   color:"#b07898" },
+  edward: { name:"Edward Marsh",         title:"The Victim",      color:"#a09878" }
+};
+const SCHEDULES = {
+  dale:   [[0,360,'police_station'],[360,420,'diner'],[420,720,'police_station'],[720,900,'diner'],[900,1080,'police_station']],
+  clara:  [[0,1080,'diner']],
+  victor: [[0,120,null],[120,720,'library'],[720,900,'streets'],[900,1080,null]],
+  rose:   [[0,180,'victim_house'],[180,420,'library'],[420,720,'victim_house'],[720,900,'diner'],[900,1080,'victim_house']],
+  edward: [[0,180,'victim_house'],[180,360,'streets'],[360,540,'library'],[540,720,'victim_house'],[720,930,'diner'],[930,1080,'victim_house']]
+};
+
+const WEATHERS = ['overcast','light rain','fog','cold drizzle'];
+
+// ═══════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════
+
+let S = {
+  time: 0,           // minutes from 6AM
+  loc: 'streets',
+  clues: new Set(),
+  knowledge: [],     // persistent narrative knowledge across loops
+  loop: 1,
+  seenDlg: {},       // npc -> array of seen dialogue keys
+  usedKey: false,    // used desk key to search
+  accusedWrong: [],
+  weather: 0,
+  gameActive: false
+};
+
+function npcAt(npc, loc) {
+  const s = SCHEDULES[npc];
+  for (const [from,to,l] of s) if (S.time >= from && S.time < to) return l === loc;
+  return false;
+}
+function npcLoc(npc) {
+  const s = SCHEDULES[npc];
+  for (const [from,to,l] of s) if (S.time >= from && S.time < to) return l;
+  return null;
+}
+function timeStr(min) {
+  const total = 6*60 + min;
+  const h = Math.floor(total/60) % 24;
+  const m = total % 60;
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const h12 = h === 0 ? 12 : h > 12 ? h-12 : h;
+  return `${h12}:${m.toString().padStart(2,'0')} ${ampm}`;
+}
+function tod() {
+  if (S.time < 180) return 'morning';
+  if (S.time < 360) return 'midmorning';
+  if (S.time < 540) return 'afternoon';
+  if (S.time < 720) return 'lateafternoon';
+  if (S.time < 900) return 'evening';
+  return 'night';
+}
+function weather() { return WEATHERS[S.weather % WEATHERS.length]; }
+
+// ═══════════════════════════════════════════════
+// LOCATION DESCRIPTIONS
+// ═══════════════════════════════════════════════
+
+const LOC_DATA = {
+  streets: {
+    name:"Ashford Mill — Town Streets", icon:"⌂",
+    desc(){
+      const w = weather();
+      const t = tod();
+      const wmap = {overcast:"Overcast skies press low over the rooftops.",fog:"Fog clings to the lamp posts and hedges.","light rain":"A thin rain falls on the empty pavement.","cold drizzle":"Cold drizzle hazes the street lamps."};
+      const tmap = {morning:"The morning is thin and quiet. A milk truck rumbles past.",midmorning:"A few townsfolk move about their errands.",afternoon:"The afternoon light struggles through the clouds.",lateafternoon:"Late afternoon. Shopkeepers stand in their doorways.",evening:"The streets begin to empty as evening arrives.",night:"Ashford Mill has gone dark. Only the diner window glows."};
+      return `${wmap[w]} ${tmap[t]} The main street of Ashford Mill. From here you can reach the Diner, the Police Station, the Public Library, and the Marsh residence on Elm Street.`;
+    },
+    connections:['diner','police_station','library','victim_house']
+  },
+  diner: {
+    name:"Clara's Diner", icon:"☕",
+    desc(){
+      const t = tod();
+      if (t==='morning') return "The diner smells of burnt coffee and frying eggs. Clara works the counter with practised efficiency. A few regulars hunch over their mugs, not speaking.";
+      if (t==='midmorning') return "The breakfast crowd has thinned. Clara stacks clean plates behind the counter, humming to herself. The specials board reads: Beef Stew, $3.50.";
+      if (t==='afternoon') return "The afternoon lull. Two booths occupied. A ceiling fan turns slowly overhead, stirring the smell of old grease and wood.";
+      if (t==='lateafternoon') return "Late afternoon in the diner. Clara refills saltshakers. The radio plays something with a lot of piano.";
+      if (t==='evening') return "Evening clientele drifts in. Edward Marsh sits in the corner booth, nursing a whiskey — he's been here a while. Sheriff Briggs stands at the counter, chatting with Clara.";
+      return "It is late. Clara is wiping down tables. She looks tired, or troubled — it is hard to tell. Edward's corner booth is empty. His glass is still there.";
+    },
+    connections:['streets']
+  },
+  police_station: {
+    name:"Ashford Mill Police Station", icon:"⚖",
+    desc(){
+      const t = tod();
+      if (t==='morning') return "A squat brick building on the corner of Main and Third. Sheriff Briggs sits behind his desk reading a newspaper, boot heels on the wood. A deputy types slowly in the back room.";
+      if (t==='midmorning') return "The Sheriff is out on patrol. His deputy manages the front desk — a young woman who looks bored.";
+      if (t==='afternoon'||t==='lateafternoon') return "The Sheriff is back, office door half-closed. His voice is low and clipped on the phone. The front room is empty.";
+      if (t==='evening') return "Evening. The deputy has gone home. The Sheriff's truck is in the lot. A lamp is on in his window.";
+      return "Late. The station is silent. Only the Sheriff's light burns at the back.";
+    },
+    connections:['streets']
+  },
+  library: {
+    name:"Ashford Mill Public Library", icon:"📖",
+    desc(){
+      const t = tod();
+      if (t==='morning') return "The library does not open until 8 AM. The door is locked. Dark inside.";
+      if (t==='midmorning'||t==='afternoon'||t==='lateafternoon') return "Victor Hale presides over the reading room in near-perfect silence. Tall shelves crowd the walls. The smell of old paper and damp plaster. High windows let in pale, watery light.";
+      if (t==='evening') return "The library closed at 6. Victor has left. The front door is unlocked — an oversight, or perhaps not.";
+      return "Closed and dark. The door opens with a push. No one about.";
+    },
+    connections:['streets']
+  },
+  victim_house: {
+    name:"The Marsh Residence — 14 Elm Street", icon:"🏠",
+    desc(){
+      const t = tod();
+      if (t==='morning') return "A neat Victorian house behind a low iron fence. Kitchen light on. Edward Marsh moves past a window — dressed but restless, picking things up and setting them down again.";
+      if (t==='midmorning'||t==='afternoon') return "The house is still. A curtain twitches as you approach the gate. Someone is home.";
+      if (t==='lateafternoon') return "Afternoon quiet on Elm Street. Edward's car is in the drive. Curtains drawn at the study window.";
+      if (t==='evening') return "Both cars gone now. A lamp left on upstairs. The house has the look of holding its breath.";
+      return "A light has come back on. Edward's car is back in the drive. The curtains do not move.";
+    },
+    connections:['streets']
+  }
+};
+
+// ═══════════════════════════════════════════════
+// DIALOGUE TREES
+// ═══════════════════════════════════════════════
+
+function getDlgOptions(npc) {
+  const c = S.clues;
+  const dlg = [];
+
+  if (npc === 'dale') {
+    dlg.push({ key:'dale_gen', label:"Ask about the Marsh case", text:"He leans back. \"Edward Marsh was a pillar of this community. Tragic accident, far as I can tell. Heart condition, probably. We'll know when the doc finishes his report.\" He watches you with flat, unhurried eyes.", clueGiven:null });
+    if (c.has('diary')) dlg.push({ key:'dale_diary', label:"Show him the diary", text:"His jaw tightens. He looks at it for a long moment. \"That's private property. Where'd you find that?\" He sets it down carefully, the way you set down something you want to pick back up later.", clueGiven:null, knowledge:"The Sheriff's reaction to the diary confirms he knew about it." });
+    if (c.has('ledger')) dlg.push({ key:'dale_ledger', label:"Show him the financial ledger", text:"\"Those figures are out of context. Any audit would show — \" He stops. \"Where did you get that. That was in my office.\" His voice is very quiet now.", clueGiven:null, knowledge:"The Sheriff recognises the ledger immediately. He does not deny it." });
+    if (c.has('poison_vial')) dlg.push({ key:'dale_vial', label:"Show him the vial", text:"A long pause. \"I've never seen that before.\" He is sweating above the collar. \"You've been in my desk. That's breaking and entering.\" His hand moves toward the phone and stops.", clueGiven:null, knowledge:"The Sheriff claims not to recognise the vial, but his reaction says otherwise." });
+    if (c.has('diary') && c.has('ledger')) dlg.push({ key:'dale_both', label:"Confront him directly", text:"His face closes like a shutter. \"You've got nothing. Edward was a troubled man. He made accusations his whole life.\" He stands. \"I think you'd better leave.\"", clueGiven:null });
+    dlg.push({ key:'close', label:"Leave", text:"", close:true });
+  }
+
+  if (npc === 'clara') {
+    dlg.push({ key:'clara_gen', label:"Ask about last night", text:"She wipes the counter. \"Just another Tuesday, mostly. Edward was in for his usual. Sheriff came by. Couple of the Hale cousins.\" She refills your mug without asking.", clueGiven:null });
+    if (S.time >= 900) {
+      dlg.push({ key:'clara_edward', label:"Ask about Edward Marsh", text:"She stops wiping. \"He was here all evening. Quiet. Barely touched his stew. Drank too much — that whiskey was his second.\" She picks up the glass slowly, then sets it back down.", clueGiven:'glass_residue' });
+      if (c.has('glass_residue')) dlg.push({ key:'clara_sheriff', label:"Ask about the Sheriff behind the counter", text:"She goes still. \"How did you...\" She sets down the cloth. \"He went back behind my counter around half past seven. Said he needed sugar. But I keep sugar right there on the tables.\" She looks at the glass. \"He was back there two, maybe three minutes.\"", clueGiven:'clara_testimony', knowledge:"Clara places the Sheriff behind the counter at 7:30 PM — when Edward's drink was unattended." });
+    }
+    dlg.push({ key:'close', label:"Leave", text:"", close:true });
+  }
+
+  if (npc === 'victor') {
+    dlg.push({ key:'victor_gen', label:"Ask about the Marsh family", text:"He adjusts his glasses. \"I know them in the way you know anyone in a town this size. Edward used the reading room occasionally. Rose comes in regularly.\" He returns to his shelving.", clueGiven:null });
+    if (c.has('victor_note')) dlg.push({ key:'victor_note_q', label:"Ask about the threatening note", text:"He goes pale. \"That note — that's between Edward and myself. A private financial matter.\" He closes the book in his hands. \"I will tell you plainly: I owed him money. I did not kill him. I was here, in this building, all afternoon. Rose Marsh can confirm it.\"", clueGiven:null, knowledge:"Victor had a motive — Edward was blackmailing him. But Rose Marsh confirms his alibi: he was at the library all afternoon." });
+    if (c.has('safe_combo')) dlg.push({ key:'victor_accounts', label:"Ask about the town accounts book", text:"He looks at you sharply. \"That book should not leave this building. It contains— \" He stops. \"It contains public records. Available to anyone. I trust you've signed the reading register.\"", clueGiven:null });
+    dlg.push({ key:'close', label:"Leave", text:"", close:true });
+  }
+
+  if (npc === 'rose') {
+    dlg.push({ key:'rose_gen', label:"Offer condolences", text:"She looks at something past your shoulder. \"Thank you. I keep thinking I hear his car in the drive.\" She folds her hands.", clueGiven:null });
+    if (S.time < 360 && S.loc === 'victim_house') dlg.push({ key:'rose_morning', label:"Ask how Edward seemed this morning", text:"\"Frightened,\" she says simply. \"He's been frightened all week. I asked him why. He said it was nothing. He was burning papers in the kitchen at five in the morning.\"", clueGiven:null, knowledge:"Rose confirms Edward was frightened and destroying documents the morning of his death." });
+    if (c.has('diary')) dlg.push({ key:'rose_diary', label:"Ask about Edward's fear of the Sheriff", text:"She is quiet for a moment. \"Edward told me, last week, that Briggs had threatened him. Said Briggs looked him in the eye and told him that accidents happen to people who can't keep quiet.\" She meets your gaze. \"Edward was not a coward. He was terrified.\"", clueGiven:'rose_warning', knowledge:"Rose confirms the Sheriff threatened Edward the week before his death." });
+    if (c.has('insurance')) dlg.push({ key:'rose_insurance', label:"Ask about the life insurance policy", text:"Her expression doesn't change. \"Yes. I am the beneficiary. I doubled the policy in August. Edward had been having chest pains — the doctor recommended it.\" She looks you in the eye. \"I did not kill my husband.\"", clueGiven:null, knowledge:"Rose doubled the insurance after Edward's reported chest pains. The doctor may confirm this — but the timing is suspicious." });
+    dlg.push({ key:'close', label:"Leave", text:"", close:true });
+  }
+
+  if (npc === 'edward') {
+    if (S.time < 360 && S.loc === 'victim_house') dlg.push({ key:'ed_morning', label:"Ask if he's alright", text:"He blinks, as if catching himself. \"Fine. Just getting a head start on the day.\" He doesn't look fine. There's ash in the fireplace — fresh.", clueGiven:null, knowledge:"Edward is burning documents. He is visibly frightened but won't say why." });
+    if (S.time >= 180 && S.time < 360 && S.loc === 'streets') dlg.push({ key:'ed_streets', label:"Follow him — observe discreetly", text:"He walks quickly, checking behind him twice. He stops at the post box and removes a letter, slips it inside his coat. He does not mail anything.", clueGiven:null, knowledge:"Edward is carrying a letter he did not send. He appears to be expecting something — or someone." });
+    if (S.time >= 720 && S.loc === 'diner') dlg.push({ key:'ed_diner', label:"Sit nearby and observe", text:"He nurses his whiskey, staring at nothing. At one point he checks his watch. He doesn't eat much. The Sheriff comes in around 7:30. Edward watches him.", clueGiven:null, knowledge:"Edward watches the Sheriff's every move at the diner. He looks like a man waiting for something bad." });
+    dlg.push({ key:'close', label:"Step away", text:"", close:true });
+  }
+
+  return dlg.filter(d => !d.key || !S.seenDlg[npc]?.includes(d.key));
+}
+
+// ═══════════════════════════════════════════════
+// AVAILABLE ACTIONS PER LOCATION
+// ═══════════════════════════════════════════════
+
+function getActions() {
+  const acts = [];
+  const l = S.loc;
+  const c = S.clues;
+  const t = S.time;
+
+  // NPCs present
+  const here = Object.keys(NPCS).filter(n => npcAt(n, l));
+  here.forEach(npc => {
+    if (npc === 'edward') {
+      acts.push({ label: `Approach Edward Marsh`, cls:'talk', fn:()=>openDlg('edward') });
+    } else {
+      acts.push({ label:`Speak with ${NPCS[npc].name}`, cls:'talk', fn:()=>openDlg(npc) });
+    }
+  });
+
+  // Location-specific examine actions
+  if (l === 'victim_house') {
+    if (t < 720) {
+      acts.push({ label:"Search the study desk", cls:'examine', fn:()=>examine('desk') });
+    }
+    if (c.has('safe_combo') && t >= 540 && t < 900) {
+      acts.push({ label:"Open the study safe (combo: 47-12-33)", cls:'examine', fn:()=>examine('safe') });
+    }
+  }
+
+  if (l === 'library') {
+    if (t >= 120) {
+      acts.push({ label:"Browse the town records shelf", cls:'examine', fn:()=>examine('accounts_book') });
+    }
+    if (t >= 120 && t < 720 && !npcAt('victor',l)) {
+      acts.push({ label:"Search Victor's desk — quietly", cls:'examine', fn:()=>examine('victor_desk') });
+    } else if (t >= 120 && t < 720 && npcAt('victor',l)) {
+      acts.push({ label:"Search Victor's desk [Victor is watching — wait until he's away]", cls:'locked', fn:()=>log("Victor is watching you carefully. You'll need him distracted — or wait until he leaves.","sys"), disabled:false });
+    }
+  }
+
+  if (l === 'police_station') {
+    acts.push({ label:"Search the coffee station area", cls:'examine', fn:()=>examine('coffee_station') });
+    if (c.has('desk_key')) {
+      acts.push({ label:"Unlock and search the Sheriff's desk drawer", cls:'examine', fn:()=>examine('locked_drawer') });
+    } else {
+      acts.push({ label:"Examine the locked desk drawer [need a key]", cls:'locked', fn:()=>log("The bottom drawer is locked solid. You'll need a key.","sys") });
+    }
+  }
+
+  if (l === 'diner') {
+    if (t >= 900) {
+      acts.push({ label:"Examine Edward's corner table", cls:'examine', fn:()=>examine('edwards_table') });
+    }
+  }
+
+  if (l === 'streets') {
+    acts.push({ label:"Observe the town — look for anything unusual", cls:'examine', fn:()=>examine('streets_observe') });
+  }
+
+  // Accusations
+  if (t >= 360) {
+    acts.push({ label:"Make an accusation", cls:'accuse', fn:()=>showAccusationMenu() });
+  }
+
+  // Move
+  const conns = LOC_DATA[l].connections;
+  conns.forEach(dest => {
+    const dname = LOC_DATA[dest].name.split('—')[1]?.trim() || LOC_DATA[dest].name;
+    acts.push({ label:`Go to: ${dname}`, cls:'move', fn:()=>move(dest) });
+  });
+
+  // Wait
+  acts.push({ label:"Wait 30 minutes", cls:'move', fn:()=>wait() });
+
+  return acts;
+}
+
+// ═══════════════════════════════════════════════
+// EXAMINE ACTIONS
+// ═══════════════════════════════════════════════
+
+function examine(what) {
+  advanceTime(30);
+  const c = S.clues;
+
+  if (what === 'desk') {
+    if (c.has('diary')) { log("You've already gone through the desk. The ash in the fireplace is fresh — Edward burned most of what was here. But the diary survives.","narr"); return; }
+    log("The study desk is covered in papers. Most are mundane — bills, correspondence. But wedged behind a lower drawer, half-burned: a small leather diary.","narr");
+    giveClue('diary');
+    return;
+  }
+
+  if (what === 'safe') {
+    if (c.has('insurance')) { log("The safe is open. You've already taken what was inside.","narr"); return; }
+    log("47... 12... 33. The tumbler clicks. Inside: a folded insurance document and a sealed envelope addressed to a solicitor in the next town.","narr");
+    giveClue('insurance');
+    addKnowledge("The safe at the Marsh residence contains documents Edward apparently wanted preserved — unlike the ones he burned.");
+    return;
+  }
+
+  if (what === 'accounts_book') {
+    if (c.has('safe_combo')) { log("You've already noted the combination and the discrepancies in the accounts book.","narr"); return; }
+    log("A thick volume: 'Ashford Mill: Town Accounts, 1998–2004.' Something is written in the front cover in pencil — 47-12-33 — and underlined. The 2002 page shows $50,000 moved to an unnamed private account, in familiar handwriting.","narr");
+    giveClue('safe_combo');
+    return;
+  }
+
+  if (what === 'victor_desk') {
+    if (c.has('victor_note')) { log("You've already found the note in Victor's desk.","narr"); return; }
+    log("In the bottom drawer, folded small: a note in Edward Marsh's handwriting. Terse, threatening. Victor Hale had a reason to want Edward silenced.","narr");
+    giveClue('victor_note');
+    return;
+  }
+
+  if (what === 'coffee_station') {
+    if (c.has('desk_key')) { log("You've already found the key taped under the coffee machine.","narr"); return; }
+    log("The coffee machine sits on a small table near the door. On a hunch, you check underneath. A brass key is taped to the base with electrical tape. 'BD' in black marker.","narr");
+    giveClue('desk_key');
+    return;
+  }
+
+  if (what === 'locked_drawer') {
+    if (c.has('ledger') && c.has('poison_vial')) { log("You've already searched the drawer. The ledger and the vial are in your possession.","narr"); return; }
+    if (c.has('ledger') && !c.has('poison_vial')) { log("You retrieve the vial again.","narr"); giveClue('poison_vial'); return; }
+    log("The key turns smoothly. Inside the bottom drawer: a financial ledger in the Sheriff's hand, and a small glass vial with a printed label. Your hand is cold as you pick it up.","narr");
+    giveClue('ledger');
+    giveClue('poison_vial');
+    return;
+  }
+
+  if (what === 'edwards_table') {
+    if (c.has('glass_residue')) { log("The glass is still there. You've already noted the residue.","narr"); return; }
+    log("Edward's corner table is undisturbed. His whiskey glass sits exactly where he left it. You hold it to the light — there is something coating the inside. Oily. Almost invisible.","narr");
+    giveClue('glass_residue');
+    return;
+  }
+
+  if (what === 'streets_observe') {
+    const obs = [
+      "The postmaster is closing up early. He looks like he hasn't slept.",
+      "A truck with out-of-county plates sits outside the hardware store. Nobody goes near it.",
+      "Two women talking on the corner go quiet as you pass.",
+      "The church bulletin board has a service posted for this Sunday: 'In times of uncertainty.'",
+      "A dog sits outside the diner and will not move, even when called."
+    ];
+    log(obs[S.loop % obs.length] || obs[0], "narr");
+    return;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// ACCUSATIONS
+// ═══════════════════════════════════════════════
+
+function showAccusationMenu() {
+  openDlgDirect(
+    "Make Your Accusation",
+    "You must have evidence to make an accusation stand. Choose carefully.",
+    [
+      { label:"I accuse Sheriff Dale Briggs", fn:()=>accuse('dale') },
+      { label:"I accuse Victor Hale", fn:()=>accuse('victor') },
+      { label:"I accuse Rose Marsh", fn:()=>accuse('rose') },
+      { label:"(Not yet — I need more evidence)", fn:()=>closeDlg() }
+    ]
+  );
+}
+
+function accuse(suspect) {
+  closeDlg();
+  const keyCount = KEY_EVIDENCE.filter(k => S.clues.has(k)).length;
+
+  if (suspect === 'dale') {
+    if (keyCount >= 2) {
+      // WIN
+      showConfrontation();
+    } else {
+      // Need more evidence
+      log("You confront Sheriff Briggs. He listens, arms folded. 'That's a hell of an accusation,' he says slowly. 'You got nothing but guesswork.' He is right. You need more.", "warn");
+      addKnowledge("Briggs is the right suspect — but you need stronger evidence to make the accusation hold.");
+    }
+  } else if (suspect === 'victor') {
+    log("You put your theory to the deputy on duty: Victor Hale, with motive and opportunity. But Victor was at the library all afternoon, and Rose Marsh confirms it. The accusation falls apart. The loop resets.", "warn");
+    S.accusedWrong.push('victor');
+    addKnowledge("Victor Hale is innocent. His alibi — corroborated by Rose Marsh — is solid.");
+    setTimeout(()=>triggerLoop("You accused the wrong man. Victor's alibi holds. The killer walks free."), 1200);
+  } else if (suspect === 'rose') {
+    log("You bring your suspicions about Rose Marsh to the deputy. The insurance policy, the timing. But Rose was at the library all afternoon, with Victor Hale as witness. The case collapses.", "warn");
+    S.accusedWrong.push('rose');
+    addKnowledge("Rose Marsh is innocent. She and Victor Hale provide each other's alibis.");
+    setTimeout(()=>triggerLoop("The wrong accusation. Rose's alibi is confirmed. The killer walks free."), 1200);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// CONFRONTATION SCENE
+// ═══════════════════════════════════════════════
+
+let cfStep = 0;
+const CF_STEPS = [
+  {
+    scene:`The police station is quiet. You close the door behind you. Sheriff Dale Briggs looks up from his desk — and something shifts in his face when he sees you. Just for a moment.\n\n"Detective," he says. "Working late."`,
+    opts:[{ label:"\"I know what you did, Dale.\"", next:1 }]
+  },
+  {
+    scene:`He leans back. "Is that so." Not a question. His hand rests on the desk, very still.\n\n"Edward Marsh was going to expose what you did in 2002. The missing funds. <em>Your</em> funds."`,
+    opts:[{ label:"Show the financial ledger", next:2, need:'ledger' }, { label:"Show Edward's diary", next:3, need:'diary' }]
+  },
+  {
+    scene:`He looks at the ledger for a long time. When he looks up, something has left his face — the pretence, maybe.\n\n"Where did you get that."\n\n"Your desk. Behind the key you hide under your coffee machine."`,
+    opts:[{ label:"\"And I found the vial.\"", next:4, need:'poison_vial' }, { label:"\"Clara saw you behind her counter at 7:30.\"", next:5, need:'clara_testimony' }]
+  },
+  {
+    scene:`He reads the diary entry once, then again. His jaw works.\n\n"Edward was... unstable. These are the ravings of a—"\n\n"You threatened him. Rose told me. <em>Accidents happen to people who can't keep quiet.</em> Those are your words."`,
+    opts:[{ label:"\"And then you made it look like one.\"", next:4, need:'poison_vial' }]
+  },
+  {
+    scene:`You set the vial on his desk.\n\nHe doesn't touch it. He doesn't speak. The silence in the room is so complete you can hear the clock on the wall.\n\n"Aconitine," you say. "Tasteless. You put it in his whiskey while Clara had her back turned. He was dead before he reached his front door."`,
+    opts:[{ label:"\"It's over, Dale.\"", next:6 }]
+  },
+  {
+    scene:`He stands up. For a moment you think he is going to run.\n\n"I was back there ten seconds. She imagined—"\n\n"She has a very good memory, Clara. She remembers the sugar. She remembers you didn't need any."`,
+    opts:[{ label:"\"I have the glass. I have the ledger. I have your vial. It's over.\"", next:6 }]
+  },
+  {
+    scene:`He sits back down.\n\nThe clock ticks. Outside, a truck passes on the wet road.\n\n"He was going to ruin me," he says finally. His voice is very quiet. "Twenty years in this town. He was going to take a phone call to the county office and ruin me over—"\n\n"Over fifty thousand dollars you stole."\n\nHe says nothing.\n\n"And a man's life."`,
+    opts:[{ label:"End the Loop. Bring him in.", next:'win' }]
+  }
+];
+
+function showConfrontation() {
+  closeDlg();
+  cfStep = 0;
+  document.getElementById('confront').classList.add('open');
+  renderCfStep();
+}
+function renderCfStep() {
+  const step = CF_STEPS[cfStep];
+  document.getElementById('cf-scene').innerHTML = step.scene.replace(/\n/g,'<br>');
+  const opts = document.getElementById('cf-opts');
+  opts.innerHTML = '';
+  step.opts.forEach(opt => {
+    const disabled = opt.need && !S.clues.has(opt.need);
+    const btn = document.createElement('button');
+    btn.className = 'abtn talk';
+    btn.textContent = opt.label + (disabled ? ' [need evidence]' : '');
+    btn.disabled = disabled;
+    btn.style.maxWidth = '520px';
+    btn.onclick = () => {
+      if (opt.next === 'win') { document.getElementById('confront').classList.remove('open'); triggerWin(); }
+      else { cfStep = opt.next; renderCfStep(); }
+    };
+    opts.appendChild(btn);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// CORE GAME FUNCTIONS
+// ═══════════════════════════════════════════════
+
+function advanceTime(mins) {
+  S.time += mins;
+  if (S.time >= 1080) { triggerLoop("Midnight. The loop resets. Edward Marsh is dead."); return; }
+  render();
+}
+function move(dest) { S.loc = dest; advanceTime(15); }
+function wait() { advanceTime(30); log("Time passes.","sys"); }
+function giveClue(key) {
+  if (S.clues.has(key)) return;
+  S.clues.add(key);
+  const c = CLUES[key];
+  log(`EVIDENCE FOUND — ${c.name}: ${c.desc}`,"clue");
+  renderSidebar();
+}
+function addKnowledge(text) {
+  if (!S.knowledge.includes(text)) {
+    S.knowledge.push(text);
+    renderSidebar();
+  }
+}
+function log(text, type='narr') {
+  const logEl = document.getElementById('log');
+  const div = document.createElement('div');
+  div.className = `msg ${type}`;
+  div.textContent = text;
+  logEl.appendChild(div);
+  const wrap = document.getElementById('log-wrap');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════
+// DIALOGUE
+// ═══════════════════════════════════════════════
+
+function openDlg(npc) {
+  const opts = getDlgOptions(npc);
+  if (opts.length === 0) { log(`${NPCS[npc].name} has nothing more to say right now.`,"sys"); advanceTime(10); return; }
+  const intro = opts.find(o=>o.key&&!o.close);
+  showDlgNode(npc, null, opts);
+}
+function showDlgNode(npc, key, opts) {
+  document.getElementById('dlg-npc').textContent = `${NPCS[npc].name} — ${NPCS[npc].title}`;
+  document.getElementById('dlg-text').textContent = key ? (getDlgOptions(npc).find(o=>o.key===key)||{text:''}).text : `${NPCS[npc].name} turns toward you.`;
+
+  const optsEl = document.getElementById('dlg-opts');
+  optsEl.innerHTML = '';
+  opts.forEach(opt => {
+    if (opt.close) {
+      const btn = document.createElement('button');
+      btn.className = 'dopt close';
+      btn.textContent = opt.label;
+      btn.onclick = () => { closeDlg(); advanceTime(20); };
+      optsEl.appendChild(btn);
+      return;
+    }
+    const btn = document.createElement('button');
+    btn.className = 'dopt';
+    btn.textContent = opt.label;
+    btn.onclick = () => {
+      if (!S.seenDlg[npc]) S.seenDlg[npc] = [];
+      if (opt.key) S.seenDlg[npc].push(opt.key);
+      if (opt.clueGiven) giveClue(opt.clueGiven);
+      if (opt.knowledge) addKnowledge(opt.knowledge);
+      document.getElementById('dlg-text').textContent = opt.text;
+      // Rebuild options for follow-up
+      const remaining = getDlgOptions(npc);
+      optsEl.innerHTML = '';
+      remaining.forEach(ro => {
+        if (ro.close) {
+          const b2 = document.createElement('button');
+          b2.className = 'dopt close';
+          b2.textContent = ro.label;
+          b2.onclick = () => { closeDlg(); advanceTime(20); };
+          optsEl.appendChild(b2);
+        } else {
+          const b2 = document.createElement('button');
+          b2.className = 'dopt';
+          b2.textContent = ro.label;
+          b2.onclick = () => {
+            if (!S.seenDlg[npc]) S.seenDlg[npc] = [];
+            if (ro.key) S.seenDlg[npc].push(ro.key);
+            if (ro.clueGiven) giveClue(ro.clueGiven);
+            if (ro.knowledge) addKnowledge(ro.knowledge);
+            document.getElementById('dlg-text').textContent = ro.text;
+          };
+          optsEl.appendChild(b2);
+        }
+      });
+      if (optsEl.children.length === 0) {
+        const b = document.createElement('button');
+        b.className = 'dopt close';
+        b.textContent = 'Leave';
+        b.onclick = () => { closeDlg(); advanceTime(20); };
+        optsEl.appendChild(b);
+      }
+    };
+    optsEl.appendChild(btn);
+  });
+
+  document.getElementById('dlg-overlay').classList.add('open');
+}
+function openDlgDirect(title, body, options) {
+  document.getElementById('dlg-npc').textContent = title;
+  document.getElementById('dlg-text').textContent = body;
+  const optsEl = document.getElementById('dlg-opts');
+  optsEl.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = opt.close ? 'dopt close' : 'dopt';
+    btn.textContent = opt.label;
+    btn.onclick = opt.fn;
+    optsEl.appendChild(btn);
+  });
+  document.getElementById('dlg-overlay').classList.add('open');
+}
+function closeDlg() { document.getElementById('dlg-overlay').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════
+// LOOP & WIN
+// ═══════════════════════════════════════════════
+
+function triggerLoop(reason) {
+  const clueCount = S.clues.size;
+  const keyCount = KEY_EVIDENCE.filter(k => S.clues.has(k)).length;
+  const ls = document.getElementById('loop-screen');
+  document.getElementById('ls-body').innerHTML =
+    `${reason}<br><br>` +
+    `<strong style="color:#6a5a80">Loop ${S.loop} complete.</strong> You have collected <strong style="color:#c9a04c">${clueCount}</strong> piece${clueCount!==1?'s':''} of evidence — ` +
+    `<strong style="color:#c9a04c">${keyCount}</strong> of which may prove crucial.<br><br>` +
+    (keyCount >= 2
+      ? `You are close. In the next loop, you may have enough to confront the killer.`
+      : `Keep investigating. The truth is within reach.`);
+  document.getElementById('ls-btn').onclick = () => {
+    ls.classList.remove('open');
+    startNewLoop();
+  };
+  ls.classList.add('open');
+}
+
+function startNewLoop() {
+  S.loop++;
+  S.time = 0;
+  S.loc = 'streets';
+  S.seenDlg = {};
+  S.weather = S.loop - 1;
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('loop-tag').textContent = `LOOP ${S.loop.toString().padStart(2,'0')}`;
+  log(`You wake. October 14th, again. The rain is ${weather()}. You know more than you did.`,"sys");
+  render();
+}
+
+function triggerWin() {
+  const loopTxt = S.loop === 1 ? "on your first loop" : `after ${S.loop} loops`;
+  document.getElementById('ws-sub').textContent = `Case solved — ${loopTxt}`;
+  document.getElementById('ws-verdict').innerHTML =
+    `<strong>The killer: Sheriff Dale Briggs.</strong><br><br>` +
+    `At 7:32 PM on October 14th, Briggs added aconitine to Edward Marsh's whiskey glass while Clara Noon's back was turned. Edward died in his home at 11:48 PM, his heart failing quietly — what the first reports called a cardiac event.<br><br>` +
+    `The motive: Edward had discovered that Briggs embezzled $50,000 from Ashford Mill's town fund in 2002. He had proof. He had threatened to go to the county. Briggs could not allow it.<br><br>` +
+    `The evidence that closed the case: a financial ledger in Briggs' own hand, a vial of aconitine from his locked desk, and the testimony of Clara Noon — who remembered, finally, that there is no reason to go behind a diner counter for sugar.<br><br>` +
+    `<em style="color:#706050">Ashford Mill will not forget what happened here. Neither will you.</em>`;
+  document.getElementById('win-screen').classList.add('open');
+}
+
+function hardReset() {
+  S = { time:0, loc:'streets', clues:new Set(), knowledge:[], loop:1, seenDlg:{}, usedKey:false, accusedWrong:[], weather:0, gameActive:true };
+  document.getElementById('win-screen').classList.remove('open');
+  document.getElementById('loop-screen').classList.remove('open');
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('loop-tag').textContent = 'LOOP 01';
+  log("You wake. October 14th. Again, for the first time.","sys");
+  render();
+}
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+
+function render() {
+  if (!S.gameActive) return;
+  const ld = LOC_DATA[S.loc];
+  document.getElementById('clock').textContent = timeStr(S.time);
+  document.getElementById('tfill').style.width = `${(S.time/1080)*100}%`;
+  document.getElementById('loc-icon').textContent = ld.icon;
+  document.getElementById('loc-name').textContent = ld.name;
+  document.getElementById('weather-tag').textContent = weather();
+  document.getElementById('loc-desc').textContent = ld.desc();
+
+  // NPC presence
+  const here = Object.keys(NPCS).filter(n => npcAt(n, S.loc));
+  const pres = document.getElementById('npc-presence');
+  pres.innerHTML = '';
+  if (here.length) {
+    const div = document.createElement('div');
+    div.className = 'npc-line';
+    div.innerHTML = '<span class="dot"></span>' + here.map(n=>NPCS[n].name).join(', ') + ' — present';
+    pres.appendChild(div);
+  }
+
+  // Actions
+  const acts = getActions();
+  const actEl = document.getElementById('actions');
+  actEl.innerHTML = '';
+  acts.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = `abtn ${a.cls||''}`;
+    btn.textContent = a.label;
+    if (a.disabled) btn.disabled = true;
+    btn.onclick = a.fn;
+    actEl.appendChild(btn);
+  });
+
+  renderSidebar();
+}
+
+function renderSidebar() {
+  const cl = document.getElementById('clue-list');
+  cl.innerHTML = '';
+  if (S.clues.size === 0) {
+    cl.innerHTML = '<div class="no-clue">Nothing yet. Begin your investigation.</div>';
+  } else {
+    S.clues.forEach(key => {
+      const c = CLUES[key];
+      const card = document.createElement('div');
+      card.className = 'clue-card';
+      card.innerHTML = `<div class="clue-title">${c.short}</div><div class="clue-body">${c.desc}</div>`;
+      cl.appendChild(card);
+    });
+  }
+  const kb = document.getElementById('knowledge-list');
+  kb.innerHTML = '';
+  if (S.knowledge.length) {
+    document.getElementById('kb-divider').style.display = '';
+    document.getElementById('kb-label').style.display = '';
+    S.knowledge.forEach(k => {
+      const d = document.createElement('div');
+      d.className = 'knowledge-item';
+      d.textContent = k;
+      kb.appendChild(d);
+    });
+  } else {
+    document.getElementById('kb-divider').style.display = 'none';
+    document.getElementById('kb-label').style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════
+// START
+// ═══════════════════════════════════════════════
+
+function startGame() {
+  document.getElementById('intro').style.display = 'none';
+  S.gameActive = true;
+  log("You wake. October 14th. The overcast sky is the colour of old pewter. You are in Ashford Mill. Edward Marsh will be dead by midnight.","sys");
+  log("Investigate. Speak to people. Examine the evidence. When you know enough — make your accusation. The loop ends at midnight.","sys");
+  render();
+}
+</script>
+</body>
+</html>

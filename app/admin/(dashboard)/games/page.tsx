@@ -5,6 +5,7 @@ import { GamesToggle } from './GamesToggle';
 export const dynamic = 'force-dynamic';
 
 const ALL_GAMES = [
+  { id: 'catch-the-bone', title: 'Catch the Bone!', creator: 'Shubhi Bhatia', category: 'Preteens' },
   { id: 'ring-or-drown', title: 'Ring or Drown in Lava', creator: 'Manya Bhatia', category: 'Preteens' },
   { id: 'time-loop-detective', title: 'Time-Loop Detective', creator: 'Shubhi Bhatia', category: 'Teens' },
 ];

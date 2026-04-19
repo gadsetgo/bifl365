@@ -29,7 +29,7 @@ const preteensGames: Game[] = [
   {
     id: 'catch-the-bone',
     title: 'Catch the Bone!',
-    creator: 'Game Dev',
+    creator: 'Shubhi Bhatia',
     description: '50 levels of fluffy dog fun! Use arrow keys to catch falling bones and earn diamonds. Unlock special dog skins along the way!',
     link: '/games/preteens/catch-the-bone',
   },

@@ -36,7 +36,7 @@ export default function RingOrDrownPage() {
       {/* Footer */}
       <div className="bg-gray-100 py-4 px-4 text-center">
         <p className="text-gray-600 text-sm">
-          Aim the tank barrel with your mouse • Click to shoot • Miss too much = Lava Mode = instant death!
+          Drag to aim (touch) or move mouse • Tap/Click to shoot • Tap while flying = Boost! • [Target Mode] Miss too much = Lava Mode!
         </p>
       </div>
     </main>

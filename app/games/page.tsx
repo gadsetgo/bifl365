@@ -5,12 +5,15 @@ import { join } from 'path';
 
 export const dynamic = 'force-dynamic';
 
-function getGamesEnabled(): boolean {
+function getGamesConfig(): { enabled: boolean; disabledGames: string[] } {
   try {
     const config = JSON.parse(readFileSync(join(process.cwd(), 'bifl365.config.json'), 'utf-8'));
-    return config.games_enabled !== false;
+    return {
+      enabled: config.games_enabled !== false,
+      disabledGames: config.disabled_games ?? [],
+    };
   } catch {
-    return true;
+    return { enabled: true, disabledGames: [] };
   }
 }
 
@@ -58,7 +61,11 @@ function GameCard({ game }: { game: Game }) {
 }
 
 export default function GamesPage() {
-  if (!getGamesEnabled()) notFound();
+  const { enabled, disabledGames } = getGamesConfig();
+  if (!enabled) notFound();
+
+  const visiblePreteens = preteensGames.filter((g) => !disabledGames.includes(g.id));
+  const visibleTeens = teensGames.filter((g) => !disabledGames.includes(g.id));
 
   return (
     <main className="min-h-screen bg-paper">
@@ -79,11 +86,11 @@ export default function GamesPage() {
             Games for Preteens
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {preteensGames.map((game) => (
+            {visiblePreteens.map((game) => (
               <GameCard key={game.id} game={game} />
             ))}
           </div>
-          {preteensGames.length === 0 && (
+          {visiblePreteens.length === 0 && (
             <p className="text-gray-500 text-center py-8">Coming soon...</p>
           )}
         </section>
@@ -94,11 +101,11 @@ export default function GamesPage() {
             Games for Teens
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {teensGames.map((game) => (
+            {visibleTeens.map((game) => (
               <GameCard key={game.id} game={game} />
             ))}
           </div>
-          {teensGames.length === 0 && (
+          {visibleTeens.length === 0 && (
             <p className="text-gray-500 text-center py-8">Coming soon...</p>
           )}
         </section>

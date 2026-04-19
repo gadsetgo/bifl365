@@ -28,8 +28,8 @@ body{background:#0a0a1a;display:flex;flex-direction:column;align-items:center;ju
 <canvas id="gc" width="480" height="520"></canvas>
 <div id="ui">
   <span class="badge" id="lvB">LV 1</span>
-  <span>Shots: <b id="shotD">50</b></span>
-  <span>Target: <b id="tgtD">0/100</b></span>
+  <span id="shotSpan">Shots: <b id="shotD">50</b></span>
+  <span id="tgtSpan">Target: <b id="tgtD">0/100</b></span>
   <span>Score: <b id="sD">0</b></span>
   <span>Coins: <b id="cD">0</b></span>
   <span id="cmD" style="font-size:13px;font-weight:700"></span>
@@ -58,11 +58,17 @@ const LVS=[
 ];
 let st='title',frame=0,score=0,coins=0,misses=0,combo=0,maxCombo=0;
 let lava=0,lavaMode=false,shake=0;
-let ball=null,ang=-.78,mx=200,my=200;
+let ball=null,ang=-.78,mx=240,my=260;
 let bells=[],floats=[],parts=[],booms=[];
 let lv=1,shotsLeft=LV_SHOTS[0],levelScore=0,celebF=0,won=false;
 let activeBd='sky',activeTool='ball';
 let owned={bd:['sky'],tool:['ball'],boost:[]},mul=1;
+let gameMode='normal';
+let touchStartX=0,touchStartY=0,touchDragged=false;
+
+// Title screen button hit rects
+const BTN_NORMAL={x:15,y:88,w:215,h:94};
+const BTN_TARGET={x:250,y:88,w:215,h:94};
 
 let actx;
 function iAud(){if(!actx){try{actx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}}
@@ -119,15 +125,18 @@ function shoot(){
   if(ball||st!=='aiming')return;
   const m=muzzle();
   ball={x:m.x,y:m.y,vx:Math.cos(ang)*SPD,vy:Math.sin(ang)*SPD};
-  shotsLeft--;
+  if(gameMode==='target')shotsLeft--;
   st='flying';shake=5;burst(m.x,m.y);boomSound();
 }
 function onMiss(){
-  misses++;combo=0;const c=lc();
-  if(!lavaMode&&misses>=c.miss){
-    lavaMode=true;lava=Math.max(lava,52);shake=20;
-    floats.push({x:W/2,y:H*.44,text:'LAVA MODE!',life:80,col:'#ff4400',big:true});
-  } else if(lavaMode)lava=Math.min(H-70,lava+38);
+  misses++;combo=0;
+  if(gameMode==='target'){
+    const c=lc();
+    if(!lavaMode&&misses>=c.miss){
+      lavaMode=true;lava=Math.max(lava,52);shake=20;
+      floats.push({x:W/2,y:H*.44,text:'LAVA MODE!',life:80,col:'#ff4400',big:true});
+    } else if(lavaMode)lava=Math.min(H-70,lava+38);
+  }
 }
 function startCeleb(){
   st='roundclear';celebF=0;
@@ -136,9 +145,11 @@ function startCeleb(){
 function updHUD(){
   document.getElementById('sD').textContent=score;
   document.getElementById('cD').textContent=coins;
-  document.getElementById('lvB').textContent='LV '+lv;
+  document.getElementById('lvB').textContent=gameMode==='normal'?'FREE':'LV '+lv;
   document.getElementById('shotD').textContent=Math.max(0,shotsLeft);
   document.getElementById('tgtD').textContent=Math.min(levelScore,LV_TARGET)+'/'+LV_TARGET;
+  document.getElementById('shotSpan').style.display=gameMode==='target'?'':'none';
+  document.getElementById('tgtSpan').style.display=gameMode==='target'?'':'none';
   const cd=document.getElementById('cmD');
   cd.innerHTML=combo>1?`<b style="color:${['#ffcc00','#ff8800','#ff44ff'][Math.min(combo-2,2)]}">x${combo}</b>`:'';
 }
@@ -186,18 +197,27 @@ function update(){
         floats.push({x:ball.x,y:ball.y-16,text:'+'+earned,life:55,col:['#FF5555','#FFBB00','#55EE55'][zone]});
         if(combo>1)floats.push({x:W/2,y:H*.35,text:'x'+combo+'!',life:44,col:'#FFD700',big:true});
         sparks(ball.x,ball.y);ball=null;
-        if(levelScore>=LV_TARGET){startCeleb();}
-        else if(shotsLeft<=0){st='gameover';}
-        else{st='aiming';if(bells.every(bb=>bb.hitTimer===0))initBells();}
+        if(gameMode==='target'){
+          if(levelScore>=LV_TARGET){startCeleb();}
+          else if(shotsLeft<=0){st='gameover';}
+          else{st='aiming';if(bells.every(bb=>bb.hitTimer===0))initBells();}
+        } else {
+          st='aiming';
+        }
         break;
       }
     }
-    if(ball&&ball.y>=H-lava-5){if(lavaMode)st='gameover';else{onMiss();ball=null;if(shotsLeft<=0&&levelScore<LV_TARGET)st='gameover';else st='aiming';}}
-    if(ball&&(ball.x>W+20||ball.x<-20||ball.y<-40)){onMiss();ball=null;if(shotsLeft<=0&&levelScore<LV_TARGET)st='gameover';else st='aiming';}
+    if(ball&&ball.y>=H-lava-5){
+      if(gameMode==='target'&&lavaMode){st='gameover';}
+      else{onMiss();ball=null;if(gameMode==='target'&&shotsLeft<=0&&levelScore<LV_TARGET)st='gameover';else st='aiming';}
+    }
+    if(ball&&(ball.x>W+20||ball.x<-20||ball.y<-40)){onMiss();ball=null;if(gameMode==='target'&&shotsLeft<=0&&levelScore<LV_TARGET)st='gameover';else st='aiming';}
   }
   const c=lc();
-  if(lavaMode&&st!=='gameover')lava=Math.min(H-68,lava+c.rise);
-  if(lavaMode&&lava>=H-68)st='gameover';
+  if(gameMode==='target'){
+    if(lavaMode&&st!=='gameover')lava=Math.min(H-68,lava+c.rise);
+    if(lavaMode&&lava>=H-68)st='gameover';
+  }
   if(shake>0)shake--;
   floats=floats.filter(f=>{f.y-=.55;f.life--;return f.life>0;});
   parts=parts.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.1;p.life--;return p.life>0;});
@@ -341,6 +361,76 @@ function drawBall(){
 }
 
 function ovl(a){ct.fillStyle=`rgba(0,0,0,${a})`;ct.fillRect(0,0,W,H);}
+
+function roundRect(x,y,w,h,r){
+  ct.beginPath();
+  ct.moveTo(x+r,y);ct.lineTo(x+w-r,y);ct.quadraticCurveTo(x+w,y,x+w,y+r);
+  ct.lineTo(x+w,y+h-r);ct.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ct.lineTo(x+r,y+h);ct.quadraticCurveTo(x,y+h,x,y+h-r);
+  ct.lineTo(x,y+r);ct.quadraticCurveTo(x,y,x+r,y);
+  ct.closePath();
+}
+
+function drawTitle(){
+  ovl(.75);ct.textAlign='center';
+
+  // Title
+  ct.fillStyle='#ff6600';ct.font='bold 26px sans-serif';ct.fillText('Ring or Drown',W/2,48);
+  ct.fillStyle='#ffcc00';ct.font='bold 18px sans-serif';ct.fillText('in Lava',W/2,68);
+  ct.fillStyle='rgba(255,255,255,.45)';ct.font='11px sans-serif';ct.fillText('A game by Manya Bhatia',W/2,82);
+
+  // Mode buttons
+  const bY=BTN_NORMAL.y,bH=BTN_NORMAL.h;
+
+  // Normal Mode button
+  const nHov=mx>=BTN_NORMAL.x&&mx<=BTN_NORMAL.x+BTN_NORMAL.w&&my>=bY&&my<=bY+bH;
+  ct.fillStyle=nHov?'rgba(50,170,70,.88)':'rgba(30,110,50,.75)';
+  roundRect(BTN_NORMAL.x,bY,BTN_NORMAL.w,bH,10);ct.fill();
+  ct.strokeStyle=nHov?'#66ffaa':'#44ee88';ct.lineWidth=2;ct.stroke();
+  ct.fillStyle='#aaffcc';ct.font='bold 14px sans-serif';ct.fillText('NORMAL MODE',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+20);
+  ct.fillStyle='rgba(255,255,255,.8)';ct.font='11px sans-serif';
+  ct.fillText('Bells to ring — no pressure!',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+38);
+  ct.fillText('Infinite shots',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+53);
+  ct.fillText('No lava punishment',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+68);
+  ct.fillStyle='#88ffbb';ct.font='bold 12px sans-serif';ct.fillText('▶ Tap to play',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+85);
+
+  // Target Mode button
+  const tHov=mx>=BTN_TARGET.x&&mx<=BTN_TARGET.x+BTN_TARGET.w&&my>=bY&&my<=bY+bH;
+  ct.fillStyle=tHov?'rgba(180,55,15,.88)':'rgba(120,35,8,.75)';
+  roundRect(BTN_TARGET.x,bY,BTN_TARGET.w,bH,10);ct.fill();
+  ct.strokeStyle=tHov?'#ff9944':'#ff6622';ct.lineWidth=2;ct.stroke();
+  ct.fillStyle='#ffcc88';ct.font='bold 14px sans-serif';ct.fillText('TARGET MODE',BTN_TARGET.x+BTN_TARGET.w/2,bY+20);
+  ct.fillStyle='rgba(255,255,255,.8)';ct.font='11px sans-serif';
+  ct.fillText('Score 100 pts per level',BTN_TARGET.x+BTN_TARGET.w/2,bY+38);
+  ct.fillText('3 levels: 50 → 40 → 30 shots',BTN_TARGET.x+BTN_TARGET.w/2,bY+53);
+  ct.fillText('Miss too much → Lava rises!',BTN_TARGET.x+BTN_TARGET.w/2,bY+68);
+  ct.fillStyle='#ffaa66';ct.font='bold 12px sans-serif';ct.fillText('▶ Tap to play',BTN_TARGET.x+BTN_TARGET.w/2,bY+85);
+
+  // Rules section
+  const ry=bY+bH+14;
+  ct.fillStyle='rgba(255,220,80,.9)';ct.font='bold 12px sans-serif';
+  ct.fillText('── HOW TO PLAY ──',W/2,ry);
+
+  const rules=[
+    ['• Drag finger to aim  /  Move mouse to aim','#fff'],
+    ['• Tap (touch) or Click → SHOOT','#fff'],
+    ['• Tap again while ball is flying → BOOST UP!','#fff'],
+    ['• Hit bells to score  •  Red > Yellow > Green','#fff'],
+    ['[Target Mode] Miss a lot → Lava Mode = danger!','#ffbb66'],
+    ['[Target Mode] Score 100 pts to advance level','#ffbb66'],
+  ];
+  ct.font='11px sans-serif';
+  rules.forEach(([txt,col],i)=>{
+    ct.fillStyle=col;
+    ct.fillText(txt,W/2,ry+17+i*19);
+  });
+
+  // Bottom lava
+  ct.fillStyle='#ff3300';ct.fillRect(0,H-28,W,28);
+  ct.strokeStyle='#ff6600';ct.lineWidth=2;ct.beginPath();
+  for(let x=0;x<W;x+=4)ct.lineTo(x,H-28+Math.sin((x+frame*3)*.1)*5);ct.stroke();
+}
+
 function drawRoundClear(){
   ct.textAlign='center';const p=.65+Math.sin(celebF*.15)*.35;
   ct.globalAlpha=p;
@@ -360,18 +450,6 @@ function drawLevelStart(){
   ct.fillStyle='rgba(255,255,255,.6)';ct.font='bold 13px sans-serif';ct.fillText('Get ready...',W/2,H*.64);
   ct.globalAlpha=1;
 }
-function drawTitle(){
-  ovl(.65);ct.textAlign='center';
-  ct.fillStyle='#ff6600';ct.font='bold 30px sans-serif';ct.fillText('Ring or Drown',W/2,168);
-  ct.fillStyle='#ffcc00';ct.font='bold 22px sans-serif';ct.fillText('in Lava',W/2,196);
-  ct.fillStyle='rgba(255,255,255,.5)';ct.font='12px sans-serif';ct.fillText('A game by Manya',W/2,218);
-  ct.fillStyle='rgba(255,255,255,.85)';ct.font='13px sans-serif';
-  ['Aim the tank barrel with your mouse','Click to SHOOT  •  Tap again = BOOST UP!','Score 100 pts per level before shots run out!','3 levels: 50 → 40 → 30 shots each'].forEach((t,i)=>ct.fillText(t,W/2,256+i*20));
-  ct.fillStyle='rgba(255,200,50,.9)';ct.font='bold 17px sans-serif';ct.fillText('Tap anywhere to start!',W/2,368);
-  ct.fillStyle='#ff3300';ct.fillRect(0,H-28,W,28);
-  ct.strokeStyle='#ff6600';ct.lineWidth=2;ct.beginPath();
-  for(let x=0;x<W;x+=4)ct.lineTo(x,H-28+Math.sin((x+frame*3)*.1)*5);ct.stroke();
-}
 function drawGameOver(){
   const shotOut=!won&&shotsLeft<=0&&!lavaMode;
   ovl(.75);ct.textAlign='center';
@@ -380,7 +458,7 @@ function drawGameOver(){
   if(!won){ct.fillStyle='rgba(255,255,255,.7)';ct.font='14px sans-serif';ct.fillText('Level '+lv+': '+Math.min(levelScore,LV_TARGET)+'/100 points',W/2,218);}
   ct.fillStyle='#ffcc00';ct.font='20px sans-serif';ct.fillText('Total Score: '+score,W/2,244);
   ct.fillStyle='#aaffcc';ct.font='15px sans-serif';ct.fillText('Best combo: x'+maxCombo,W/2,268);
-  ct.fillStyle='rgba(180,180,255,.9)';ct.font='bold 15px sans-serif';ct.fillText('Tap to play again',W/2,316);
+  ct.fillStyle='rgba(180,180,255,.9)';ct.font='bold 15px sans-serif';ct.fillText('Tap to choose a mode',W/2,316);
 }
 
 function render(){
@@ -393,7 +471,7 @@ function render(){
   ct.globalAlpha=1;
   for(let f of floats){ct.globalAlpha=Math.min(1,f.life/28);ct.fillStyle=f.col;ct.font=(f.big?'bold 22px':'bold 15px')+' sans-serif';ct.textAlign='center';ct.fillText(f.text,f.x,f.y);}
   ct.globalAlpha=1;
-  if(st==='aiming'){ct.fillStyle='rgba(255,255,200,.5)';ct.font='12px sans-serif';ct.textAlign='center';ct.fillText('Move to aim  •  Click to shoot',W/2,getLY()-72);}
+  if(st==='aiming'){ct.fillStyle='rgba(255,255,200,.5)';ct.font='12px sans-serif';ct.textAlign='center';ct.fillText('Drag to aim  •  Tap/Click to shoot',W/2,getLY()-72);}
   else if(st==='flying'){ct.fillStyle='rgba(255,255,200,.65)';ct.font='bold 13px sans-serif';ct.textAlign='center';ct.fillText('Tap to BOOST UP!',W/2,getLY()-72);}
   if(st==='roundclear')drawRoundClear();
   if(st==='levelstart')drawLevelStart();
@@ -413,25 +491,57 @@ function resetGame(){
   score=0;coins=0;misses=0;combo=0;maxCombo=0;lava=0;lavaMode=false;shake=0;frame=0;mul=1;won=false;
   ball=null;lv=1;shotsLeft=LV_SHOTS[0];levelScore=0;celebF=0;
   owned={bd:['sky'],tool:['ball'],boost:[]};activeBd='sky';activeTool='ball';
-  floats=[];parts=[];booms=[];bells=[];st='aiming';initBells();
+  floats=[];parts=[];booms=[];bells=[];
+  st='title';
+  updHUD();
 }
 
 function gPos(e){
   const r=cv.getBoundingClientRect(),sx=W/r.width,sy=H/r.height;
   return e.touches?{x:(e.touches[0].clientX-r.left)*sx,y:(e.touches[0].clientY-r.top)*sy}:{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};
 }
-cv.addEventListener('mousemove',e=>{const p=gPos(e);mx=p.x;my=p.y;if(st==='aiming')updAng();});
-cv.addEventListener('touchmove',e=>{e.preventDefault();const p=gPos(e);mx=p.x;my=p.y;if(st==='aiming')updAng();},{passive:false});
-function onTap(e){
-  if(e.type==='touchstart'){e.preventDefault();const p=gPos(e);mx=p.x;my=p.y;if(st==='aiming')updAng();}
-  if(st==='title'){st='aiming';initBells();return;}
+
+function handleActivate(){
+  if(st==='title'){
+    if(mx>=BTN_NORMAL.x&&mx<=BTN_NORMAL.x+BTN_NORMAL.w&&my>=BTN_NORMAL.y&&my<=BTN_NORMAL.y+BTN_NORMAL.h){
+      gameMode='normal';st='aiming';initBells();return;
+    }
+    if(mx>=BTN_TARGET.x&&mx<=BTN_TARGET.x+BTN_TARGET.w&&my>=BTN_TARGET.y&&my<=BTN_TARGET.y+BTN_TARGET.h){
+      gameMode='target';st='aiming';initBells();return;
+    }
+    return;
+  }
   if(st==='gameover'){resetGame();return;}
   if(st==='roundclear'||st==='levelstart')return;
   if(st==='aiming'){shoot();return;}
   if(st==='flying'&&ball){ball.vy=Math.max(ball.vy-2.5,-4.6);shake=2;}
 }
-cv.addEventListener('click',onTap);
-cv.addEventListener('touchstart',onTap,{passive:false});
+
+cv.addEventListener('mousemove',e=>{
+  const p=gPos(e);mx=p.x;my=p.y;
+  if(st==='aiming')updAng();
+});
+cv.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  const p=gPos(e);mx=p.x;my=p.y;
+  touchDragged=true;
+  if(st==='aiming')updAng();
+},{passive:false});
+cv.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  const p=gPos(e);mx=p.x;my=p.y;
+  touchStartX=p.x;touchStartY=p.y;
+  touchDragged=false;
+  if(st==='aiming')updAng();
+},{passive:false});
+cv.addEventListener('touchend',e=>{
+  e.preventDefault();
+  if(!touchDragged)handleActivate();
+},{passive:false});
+cv.addEventListener('click',e=>{
+  const p=gPos(e);mx=p.x;my=p.y;
+  handleActivate();
+});
 
 const BDS={sky:{name:'Sky',cost:0},night:{name:'Night',cost:60},space:{name:'Space',cost:200},ocean:{name:'Ocean',cost:400}};
 const TOOLS={ball:{name:'Ball',cost:0},star:{name:'Star',cost:100},diamond:{name:'Diamond',cost:250},rocket:{name:'Rocket',cost:600}};

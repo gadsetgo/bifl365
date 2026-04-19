@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { createServerSupabaseClient } from '@/lib/supabase';
@@ -11,6 +13,11 @@ const triggerSchema = z.object({
 export async function POST(request: Request) {
   const session = await auth();
   if (!session) return new NextResponse('Unauthorized', { status: 401 });
+
+  const config = JSON.parse(readFileSync(join(process.cwd(), 'bifl365.config.json'), 'utf-8'));
+  if (config.pipeline?.enabled === false) {
+    return NextResponse.json({ error: 'Pipeline is disabled. Enable it in Admin → Pipeline settings.' }, { status: 403 });
+  }
 
   const body = await request.json();
   const parsed = triggerSchema.safeParse(body);

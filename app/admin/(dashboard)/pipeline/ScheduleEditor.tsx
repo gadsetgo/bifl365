@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 interface PipelineConfig {
+  enabled?: boolean;
   run_day?: string;
   run_time?: string;
   products_per_category?: number;
@@ -54,6 +55,25 @@ export function ScheduleEditor({ initialConfig }: ScheduleEditorProps) {
 
   const isVercel = typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_VERCEL === '1');
 
+  const handlePipelineToggle = async (val: boolean) => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pipeline_enabled: val }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setConfig((c) => ({ ...c, enabled: val }));
+      setMessage({ type: 'success', text: val ? 'Pipeline enabled.' : 'Pipeline disabled.' });
+    } catch (e: any) {
+      setMessage({ type: 'error', text: e.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setMessage(null);
@@ -88,6 +108,28 @@ export function ScheduleEditor({ initialConfig }: ScheduleEditorProps) {
             Next run: <strong className="text-ink">{nextRun}</strong>
           </span>
         )}
+      </div>
+
+      {/* Pipeline Enable/Disable */}
+      <div className="px-5 py-4 border-b border-ghost flex items-center justify-between">
+        <div>
+          <p className="font-sans font-semibold text-sm text-ink">Pipeline enabled</p>
+          <p className="text-xs font-sans text-charcoal-400 mt-0.5">
+            When off, the trigger button is blocked and no new pipeline runs can start.
+          </p>
+        </div>
+        <button
+          onClick={() => handlePipelineToggle(!(config.enabled ?? true))}
+          disabled={saving}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+            (config.enabled ?? true) ? 'bg-orange' : 'bg-charcoal-400'
+          } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+          aria-label="Toggle pipeline"
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+            (config.enabled ?? true) ? 'translate-x-6' : 'translate-x-1'
+          }`} />
+        </button>
       </div>
 
       {/* Vercel read-only warning */}

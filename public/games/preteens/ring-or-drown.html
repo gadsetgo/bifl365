@@ -64,7 +64,7 @@ let lv=1,shotsLeft=LV_SHOTS[0],levelScore=0,celebF=0,won=false;
 let activeBd='sky',activeTool='ball';
 let owned={bd:['sky'],tool:['ball'],boost:[]},mul=1;
 let gameMode='normal';
-let touchStartX=0,touchStartY=0,touchDragged=false;
+let touchStartX=0,touchStartY=0,touchDragged=false,touchOnBtn=false;
 
 // Title screen button hit rects
 const BTN_NORMAL={x:15,y:88,w:215,h:94};
@@ -130,13 +130,12 @@ function shoot(){
 }
 function onMiss(){
   misses++;combo=0;
-  if(gameMode==='target'){
-    const c=lc();
-    if(!lavaMode&&misses>=c.miss){
-      lavaMode=true;lava=Math.max(lava,52);shake=20;
-      floats.push({x:W/2,y:H*.44,text:'LAVA MODE!',life:80,col:'#ff4400',big:true});
-    } else if(lavaMode)lava=Math.min(H-70,lava+38);
-  }
+  const c=lc();
+  const missThreshold=gameMode==='normal'?7:c.miss;
+  if(!lavaMode&&misses>=missThreshold){
+    lavaMode=true;lava=Math.max(lava,52);shake=20;
+    floats.push({x:W/2,y:H*.44,text:'LAVA MODE!',life:80,col:'#ff4400',big:true});
+  } else if(lavaMode)lava=Math.min(H-70,lava+(gameMode==='normal'?20:38));
 }
 function startCeleb(){
   st='roundclear';celebF=0;
@@ -214,10 +213,8 @@ function update(){
     if(ball&&(ball.x>W+20||ball.x<-20||ball.y<-40)){onMiss();ball=null;if(gameMode==='target'&&shotsLeft<=0&&levelScore<LV_TARGET)st='gameover';else st='aiming';}
   }
   const c=lc();
-  if(gameMode==='target'){
-    if(lavaMode&&st!=='gameover')lava=Math.min(H-68,lava+c.rise);
-    if(lavaMode&&lava>=H-68)st='gameover';
-  }
+  if(lavaMode&&st!=='gameover')lava=Math.min(H-68,lava+c.rise);
+  if(lavaMode&&lava>=H-68)st='gameover';
   if(shake>0)shake--;
   floats=floats.filter(f=>{f.y-=.55;f.life--;return f.life>0;});
   parts=parts.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.1;p.life--;return p.life>0;});
@@ -389,9 +386,9 @@ function drawTitle(){
   ct.strokeStyle=nHov?'#66ffaa':'#44ee88';ct.lineWidth=2;ct.stroke();
   ct.fillStyle='#aaffcc';ct.font='bold 14px sans-serif';ct.fillText('NORMAL MODE',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+20);
   ct.fillStyle='rgba(255,255,255,.8)';ct.font='11px sans-serif';
-  ct.fillText('Bells to ring — no pressure!',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+38);
-  ct.fillText('Infinite shots',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+53);
-  ct.fillText('No lava punishment',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+68);
+  ct.fillText('Bells to ring — infinite shots!',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+38);
+  ct.fillText('Miss 7+ times \u2192 Lava rises',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+53);
+  ct.fillText('Survive the rising lava!',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+68);
   ct.fillStyle='#88ffbb';ct.font='bold 12px sans-serif';ct.fillText('▶ Tap to play',BTN_NORMAL.x+BTN_NORMAL.w/2,bY+85);
 
   // Target Mode button
@@ -416,7 +413,7 @@ function drawTitle(){
     ['• Tap (touch) or Click → SHOOT','#fff'],
     ['• Tap again while ball is flying → BOOST UP!','#fff'],
     ['• Hit bells to score  •  Red > Yellow > Green','#fff'],
-    ['[Target Mode] Miss a lot → Lava Mode = danger!','#ffbb66'],
+    ['Miss too much \u2192 Lava Mode = game over!','#ffbb66'],
     ['[Target Mode] Score 100 pts to advance level','#ffbb66'],
   ];
   ct.font='11px sans-serif';
@@ -473,6 +470,12 @@ function render(){
   ct.globalAlpha=1;
   if(st==='aiming'){ct.fillStyle='rgba(255,255,200,.5)';ct.font='12px sans-serif';ct.textAlign='center';ct.fillText('Drag to aim  •  Tap/Click to shoot',W/2,getLY()-72);}
   else if(st==='flying'){ct.fillStyle='rgba(255,255,200,.65)';ct.font='bold 13px sans-serif';ct.textAlign='center';ct.fillText('Tap to BOOST UP!',W/2,getLY()-72);}
+  if(st==='aiming'||st==='flying'){
+    ct.fillStyle='rgba(255,100,30,0.88)';roundRect(W-78,H-54,70,42,10);ct.fill();
+    ct.strokeStyle='rgba(255,200,100,0.7)';ct.lineWidth=1.5;ct.stroke();
+    ct.fillStyle='#fff';ct.font='bold 14px sans-serif';ct.textAlign='center';
+    ct.fillText('\uD83D\uDD25 SHOOT',W-43,H-26);
+  }
   if(st==='roundclear')drawRoundClear();
   if(st==='levelstart')drawLevelStart();
   if(st==='title')drawTitle();
@@ -500,6 +503,7 @@ function gPos(e){
   const r=cv.getBoundingClientRect(),sx=W/r.width,sy=H/r.height;
   return e.touches?{x:(e.touches[0].clientX-r.left)*sx,y:(e.touches[0].clientY-r.top)*sy}:{x:(e.clientX-r.left)*sx,y:(e.clientY-r.top)*sy};
 }
+function inShootBtn(x,y){return (st==='aiming'||st==='flying')&&x>=W-78&&x<=W-8&&y>=H-54&&y<=H-12;}
 
 function handleActivate(){
   if(st==='title'){
@@ -519,10 +523,11 @@ function handleActivate(){
 
 cv.addEventListener('mousemove',e=>{
   const p=gPos(e);mx=p.x;my=p.y;
-  if(st==='aiming')updAng();
+  if(st==='aiming'&&!inShootBtn(p.x,p.y))updAng();
 });
 cv.addEventListener('touchmove',e=>{
   e.preventDefault();
+  if(touchOnBtn)return;
   const p=gPos(e);mx=p.x;my=p.y;
   touchDragged=true;
   if(st==='aiming')updAng();
@@ -532,10 +537,12 @@ cv.addEventListener('touchstart',e=>{
   const p=gPos(e);mx=p.x;my=p.y;
   touchStartX=p.x;touchStartY=p.y;
   touchDragged=false;
-  if(st==='aiming')updAng();
+  touchOnBtn=inShootBtn(p.x,p.y);
+  if(st==='aiming'&&!touchOnBtn)updAng();
 },{passive:false});
 cv.addEventListener('touchend',e=>{
   e.preventDefault();
+  if(touchOnBtn){handleActivate();touchOnBtn=false;return;}
   if(!touchDragged)handleActivate();
 },{passive:false});
 cv.addEventListener('click',e=>{

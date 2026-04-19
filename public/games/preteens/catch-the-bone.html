@@ -470,6 +470,55 @@ window.addEventListener('keydown', e=>{ keys[e.key]=true; if(['ArrowLeft','Arrow
 window.addEventListener('keyup',   e=>{ keys[e.key]=false; });
 
 // ─────────────────────────────────────────────
+// TOUCH CONTROLS (Mobile)
+// ─────────────────────────────────────────────
+let touchStartX = 0;
+let touchStartTime = 0;
+const TOUCH_TAP_THRESHOLD = 200; // ms for tap detection
+const TOUCH_MOVE_THRESHOLD = 20; // px to start registering as drag
+
+canvas.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartTime = Date.now();
+  keys['touchActive'] = true;
+});
+
+canvas.addEventListener('touchmove', e => {
+  if (!keys['touchActive']) return;
+  const currentX = e.touches[0].clientX;
+  const diffX = currentX - touchStartX;
+
+  if (Math.abs(diffX) > TOUCH_MOVE_THRESHOLD) {
+    e.preventDefault();
+    keys['ArrowLeft'] = diffX < 0;
+    keys['ArrowRight'] = diffX > 0;
+  }
+});
+
+canvas.addEventListener('touchend', e => {
+  const touchDuration = Date.now() - touchStartTime;
+  const currentX = e.changedTouches[0].clientX;
+  const diffX = currentX - touchStartX;
+
+  if (Math.abs(diffX) <= TOUCH_MOVE_THRESHOLD && touchDuration <= TOUCH_TAP_THRESHOLD) {
+    // Tap: left side moves left, right side moves right
+    const midpoint = canvas.width / 2;
+    keys['ArrowLeft'] = currentX < midpoint;
+    keys['ArrowRight'] = currentX >= midpoint;
+    // Clear after brief moment
+    setTimeout(() => {
+      keys['ArrowLeft'] = false;
+      keys['ArrowRight'] = false;
+    }, 100);
+  } else {
+    keys['ArrowLeft'] = false;
+    keys['ArrowRight'] = false;
+  }
+
+  keys['touchActive'] = false;
+});
+
+// ─────────────────────────────────────────────
 // INIT LEVEL
 // ─────────────────────────────────────────────
 function initLevel() {
